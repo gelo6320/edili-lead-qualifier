@@ -6,19 +6,19 @@ from lead_qualifier.models import LeadState, StoredMessage
 
 
 class LeadStore(Protocol):
-    def list_messages(self, wa_id: str) -> list[StoredMessage]:
+    def list_messages(self, bot_id: str, wa_id: str) -> list[StoredMessage]:
         ...
 
-    def save_message(self, wa_id: str, message: StoredMessage) -> None:
+    def save_message(self, bot_id: str, wa_id: str, message: StoredMessage) -> None:
         ...
 
-    def get_lead_state(self, wa_id: str) -> LeadState | None:
+    def get_lead_state(self, bot_id: str, wa_id: str) -> LeadState | None:
         ...
 
-    def save_lead_state(self, wa_id: str, lead_state: LeadState) -> None:
+    def save_lead_state(self, bot_id: str, wa_id: str, lead_state: LeadState) -> None:
         ...
 
-    def reserve_inbound_message(self, message_id: str, wa_id: str) -> bool:
+    def reserve_inbound_message(self, message_id: str, bot_id: str, wa_id: str) -> bool:
         ...
 
     def mark_inbound_message_completed(self, message_id: str) -> None:

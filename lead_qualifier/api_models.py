@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, field_validator
 
+from lead_qualifier.bot_config_models import BotConfig
+
 
 class TemplateSendRequest(BaseModel):
+    bot_id: str = Field(..., description="Identificatore del bot da usare.")
     to: str = Field(..., description="Numero WhatsApp del lead in formato internazionale, senza +.")
     template_name: str = Field(..., description="Nome esatto del template approvato in Meta.")
     language_code: str | None = Field(
@@ -15,7 +18,7 @@ class TemplateSendRequest(BaseModel):
         description="Parametri testo per il body del template, nell'ordine definito in Meta.",
     )
 
-    @field_validator("to", "template_name", mode="before")
+    @field_validator("bot_id", "to", "template_name", mode="before")
     @classmethod
     def _strip_required_fields(cls, value: object) -> str:
         return str(value or "").strip()
@@ -34,3 +37,7 @@ class TemplateSendRequest(BaseModel):
         if not isinstance(value, list):
             raise ValueError("body_parameters deve essere una lista.")
         return [str(item).strip() for item in value if str(item).strip()]
+
+
+class BotConfigRequest(BotConfig):
+    pass

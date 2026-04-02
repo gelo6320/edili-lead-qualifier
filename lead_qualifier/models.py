@@ -4,16 +4,6 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Any
 
-ALLOWED_MISSING_FIELDS = {
-    "zona_lavoro",
-    "tipo_lavoro",
-    "tempistica",
-    "budget_indicativo",
-    "disponibile_chiamata",
-}
-ALLOWED_AVAILABILITY = {"si", "no", "forse", "sconosciuto"}
-ALLOWED_QUALIFICATION_STATUS = {"nuovo", "in_qualifica", "qualificato", "da_richiamare"}
-
 
 @dataclass(frozen=True)
 class StoredMessage:
@@ -25,38 +15,21 @@ class StoredMessage:
     def user(text: str) -> "StoredMessage":
         return StoredMessage(role="user", display=text, api_content=text)
 
+    @staticmethod
+    def assistant(display: str, payload: dict[str, Any]) -> "StoredMessage":
+        return StoredMessage(
+            role="assistant",
+            display=display,
+            api_content=json.dumps(payload, ensure_ascii=False),
+        )
+
 
 @dataclass(frozen=True)
 class LeadState:
-    zona_lavoro: str
-    tipo_lavoro: str
-    tempistica: str
-    budget_indicativo: str
-    disponibile_chiamata: str
-    disponibile_sopralluogo: str
-    stato_qualifica: str
+    field_values: dict[str, str]
+    qualification_status: str
     missing_fields: list[str]
     summary: str
-
-    @staticmethod
-    def empty() -> "LeadState":
-        return LeadState(
-            zona_lavoro="",
-            tipo_lavoro="",
-            tempistica="",
-            budget_indicativo="",
-            disponibile_chiamata="sconosciuto",
-            disponibile_sopralluogo="sconosciuto",
-            stato_qualifica="nuovo",
-            missing_fields=[
-                "zona_lavoro",
-                "tipo_lavoro",
-                "tempistica",
-                "budget_indicativo",
-                "disponibile_chiamata",
-            ],
-            summary="",
-        )
 
     def as_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False)
@@ -65,38 +38,42 @@ class LeadState:
 @dataclass(frozen=True)
 class LeadQualificationResponse:
     reply_text: str
-    zona_lavoro: str
-    tipo_lavoro: str
-    tempistica: str
-    budget_indicativo: str
-    disponibile_chiamata: str
-    disponibile_sopralluogo: str
-    stato_qualifica: str
+    field_values: dict[str, str]
+    qualification_status: str
     missing_fields: list[str]
     summary: str
 
     @classmethod
-    def from_payload(cls, payload: dict[str, Any]) -> "LeadQualificationResponse":
-        missing_fields = payload.get("missing_fields", [])
-        if not isinstance(missing_fields, list):
-            missing_fields = []
-        normalized_missing_fields = [
+    def from_payload(
+        cls,
+        payload: dict[str, Any],
+        *,
+        allowed_field_keys: set[str],
+        allowed_statuses: set[str],
+        default_status: str,
+    ) -> "LeadQualificationResponse":
+        raw_fields = payload.get("field_values", {})
+        if not isinstance(raw_fields, dict):
+            raw_fields = {}
+
+        field_values = {
+            key: str(raw_fields.get(key, "")).strip()
+            for key in allowed_field_keys
+        }
+
+        raw_missing_fields = payload.get("missing_fields", [])
+        if not isinstance(raw_missing_fields, list):
+            raw_missing_fields = []
+
+        missing_fields = [
             str(value).strip()
-            for value in missing_fields
-            if str(value).strip() in ALLOWED_MISSING_FIELDS
+            for value in raw_missing_fields
+            if str(value).strip() in allowed_field_keys
         ]
 
-        disponibile_chiamata = str(payload.get("disponibile_chiamata", "sconosciuto")).strip() or "sconosciuto"
-        if disponibile_chiamata not in ALLOWED_AVAILABILITY:
-            disponibile_chiamata = "sconosciuto"
-
-        disponibile_sopralluogo = str(payload.get("disponibile_sopralluogo", "sconosciuto")).strip() or "sconosciuto"
-        if disponibile_sopralluogo not in ALLOWED_AVAILABILITY:
-            disponibile_sopralluogo = "sconosciuto"
-
-        stato_qualifica = str(payload.get("stato_qualifica", "in_qualifica")).strip() or "in_qualifica"
-        if stato_qualifica not in ALLOWED_QUALIFICATION_STATUS:
-            stato_qualifica = "in_qualifica"
+        qualification_status = str(payload.get("qualification_status", default_status)).strip() or default_status
+        if qualification_status not in allowed_statuses:
+            qualification_status = default_status
 
         reply_text = str(payload.get("reply_text", "")).strip()
         if not reply_text:
@@ -104,14 +81,9 @@ class LeadQualificationResponse:
 
         return cls(
             reply_text=reply_text,
-            zona_lavoro=str(payload.get("zona_lavoro", "")).strip(),
-            tipo_lavoro=str(payload.get("tipo_lavoro", "")).strip(),
-            tempistica=str(payload.get("tempistica", "")).strip(),
-            budget_indicativo=str(payload.get("budget_indicativo", "")).strip(),
-            disponibile_chiamata=disponibile_chiamata,
-            disponibile_sopralluogo=disponibile_sopralluogo,
-            stato_qualifica=stato_qualifica,
-            missing_fields=normalized_missing_fields,
+            field_values=field_values,
+            qualification_status=qualification_status,
+            missing_fields=missing_fields,
             summary=str(payload.get("summary", "")).strip(),
         )
 
@@ -119,21 +91,12 @@ class LeadQualificationResponse:
         return asdict(self)
 
     def to_stored_message(self) -> StoredMessage:
-        return StoredMessage(
-            role="assistant",
-            display=self.reply_text,
-            api_content=json.dumps(self.as_payload(), ensure_ascii=False),
-        )
+        return StoredMessage.assistant(self.reply_text, self.as_payload())
 
     def to_lead_state(self) -> LeadState:
         return LeadState(
-            zona_lavoro=self.zona_lavoro,
-            tipo_lavoro=self.tipo_lavoro,
-            tempistica=self.tempistica,
-            budget_indicativo=self.budget_indicativo,
-            disponibile_chiamata=self.disponibile_chiamata,
-            disponibile_sopralluogo=self.disponibile_sopralluogo,
-            stato_qualifica=self.stato_qualifica,
+            field_values=self.field_values,
+            qualification_status=self.qualification_status,
             missing_fields=self.missing_fields,
             summary=self.summary,
         )

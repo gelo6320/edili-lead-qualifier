@@ -1,0 +1,58 @@
+{
+  "id": "default",
+  "name": "Impresa Demo",
+  "company_name": "Impresa Demo",
+  "agent_name": "Giulia",
+  "phone_number_id": "",
+  "default_template_name": "lead_primo_contatto",
+  "template_language": "it",
+  "booking_url": "",
+  "prompt_preamble": "Qualifica il lead in modo pratico e commerciale. Se il lead non vuole condividere un dato, accetta anche una stima o una risposta approssimativa.",
+  "qualification_statuses": [
+    "new",
+    "in_progress",
+    "qualified",
+    "follow_up"
+  ],
+  "fields": [
+    {
+      "key": "zona_lavoro",
+      "label": "Zona del lavoro",
+      "description": "Comune, quartiere, CAP o provincia in cui si trova il cantiere.",
+      "required": true,
+      "options": []
+    },
+    {
+      "key": "tipo_lavoro",
+      "label": "Tipo di lavoro richiesto",
+      "description": "Tipo di intervento richiesto dal lead, ad esempio ristrutturazione, cappotto, tetto, bagno, facciata o impianti.",
+      "required": true,
+      "options": []
+    },
+    {
+      "key": "tempistica",
+      "label": "Tempistica",
+      "description": "Quando il lead vuole eseguire il lavoro, con data, urgenza o finestra temporale.",
+      "required": true,
+      "options": []
+    },
+    {
+      "key": "budget_indicativo",
+      "label": "Budget indicativo",
+      "description": "Budget o fascia di spesa indicativa, anche approssimativa.",
+      "required": true,
+      "options": []
+    },
+    {
+      "key": "disponibile_chiamata",
+      "label": "Disponibilita alla chiamata",
+      "description": "Disponibilita del lead a fissare una chiamata per approfondire e organizzare il sopralluogo.",
+      "required": true,
+      "options": [
+        "si",
+        "no",
+        "forse"
+      ]
+    }
+  ]
+}

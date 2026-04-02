@@ -5,19 +5,15 @@ from typing import Any
 
 from anthropic import Anthropic
 
+from lead_qualifier.bot_config_models import BotConfig
 from lead_qualifier.models import LeadQualificationResponse, StoredMessage
-from lead_qualifier.prompting import RESPONSE_SCHEMA, build_system_blocks
+from lead_qualifier.prompting import build_response_schema, build_system_blocks
 from lead_qualifier.settings import Settings
 
 
 class AnthropicLeadQualifier:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        self._system_blocks = build_system_blocks(
-            company_name=settings.company_name,
-            agent_name=settings.agent_name,
-            booking_url=settings.call_booking_url,
-        )
         self._client = Anthropic(api_key=settings.anthropic_api_key) if settings.anthropic_api_key else None
 
     def _require_client(self) -> Anthropic:
@@ -25,25 +21,36 @@ class AnthropicLeadQualifier:
             raise RuntimeError("ANTHROPIC_API_KEY non configurata.")
         return self._client
 
-    def generate_reply(self, messages: list[StoredMessage]) -> tuple[LeadQualificationResponse, dict[str, int]]:
+    def generate_reply(
+        self,
+        config: BotConfig,
+        messages: list[StoredMessage],
+    ) -> tuple[LeadQualificationResponse, dict[str, int]]:
         anthropic_messages = [
             {"role": message.role, "content": message.api_content}
             for message in messages
         ]
+        response_schema = build_response_schema(config)
+        system_blocks = build_system_blocks(config)
 
         with self._require_client().messages.stream(
             model=self._settings.anthropic_model,
             max_tokens=900,
             temperature=0.25,
-            system=self._system_blocks,
+            system=system_blocks,
             messages=anthropic_messages,
             cache_control={"type": "ephemeral"},
-            output_config={"format": {"type": "json_schema", "schema": RESPONSE_SCHEMA}},
+            output_config={"format": {"type": "json_schema", "schema": response_schema}},
         ) as stream:
             final_message = stream.get_final_message()
 
         payload = json.loads(self._extract_text(final_message))
-        response = LeadQualificationResponse.from_payload(payload)
+        response = LeadQualificationResponse.from_payload(
+            payload,
+            allowed_field_keys=set(config.field_keys),
+            allowed_statuses=set(config.qualification_statuses),
+            default_status=config.default_status,
+        )
         usage = self._extract_usage(final_message)
         return response, usage
 

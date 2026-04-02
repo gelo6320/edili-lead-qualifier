@@ -16,16 +16,20 @@ def build_admin_router(settings: Settings, service: OutboundMessageService) -> A
         require_admin_api_key(request, settings)
         try:
             response = service.send_template(
+                bot_id=payload.bot_id,
                 to=payload.to,
                 template_name=payload.template_name,
-                language_code=payload.language_code or settings.whatsapp_template_language,
+                language_code=payload.language_code,
                 body_parameters=payload.body_parameters,
             )
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
         return {
             "status": "sent",
+            "bot_id": payload.bot_id,
             "to": payload.to,
             "template_name": payload.template_name,
             "response": response,

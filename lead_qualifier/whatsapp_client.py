@@ -12,11 +12,11 @@ class WhatsAppCloudClient:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
-    def _build_endpoint(self) -> str:
+    def _build_endpoint(self, phone_number_id: str) -> str:
         return (
             f"{self._settings.whatsapp_api_base_url}/"
             f"{self._settings.whatsapp_graph_version}/"
-            f"{self._settings.whatsapp_phone_number_id}/messages"
+            f"{phone_number_id}/messages"
         )
 
     def _headers(self) -> dict[str, str]:
@@ -25,9 +25,9 @@ class WhatsAppCloudClient:
             "Content-Type": "application/json",
         }
 
-    def _post_message(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def _post_message(self, phone_number_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         response = httpx.post(
-            self._build_endpoint(),
+            self._build_endpoint(phone_number_id),
             headers=self._headers(),
             json=payload,
             timeout=30.0,
@@ -35,11 +35,18 @@ class WhatsAppCloudClient:
         response.raise_for_status()
         return response.json()
 
-    def send_text_message(self, to: str, body: str, reply_to_message_id: str | None = None) -> dict[str, Any]:
+    def send_text_message(
+        self,
+        *,
+        to: str,
+        body: str,
+        phone_number_id: str,
+        reply_to_message_id: str | None = None,
+    ) -> dict[str, Any]:
         if not self._settings.whatsapp_access_token:
             raise RuntimeError("WHATSAPP_ACCESS_TOKEN non configurato.")
-        if not self._settings.whatsapp_phone_number_id:
-            raise RuntimeError("WHATSAPP_PHONE_NUMBER_ID non configurato.")
+        if not phone_number_id:
+            raise RuntimeError("phone_number_id non configurato per il bot.")
 
         payload: dict[str, Any] = {
             "messaging_product": "whatsapp",
@@ -54,20 +61,21 @@ class WhatsAppCloudClient:
         if reply_to_message_id:
             payload["context"] = {"message_id": reply_to_message_id}
 
-        return self._post_message(payload)
+        return self._post_message(phone_number_id, payload)
 
     def send_template_message(
         self,
         *,
         to: str,
+        phone_number_id: str,
         template_name: str,
         language_code: str,
         body_parameters: Sequence[str] | None = None,
     ) -> dict[str, Any]:
         if not self._settings.whatsapp_access_token:
             raise RuntimeError("WHATSAPP_ACCESS_TOKEN non configurato.")
-        if not self._settings.whatsapp_phone_number_id:
-            raise RuntimeError("WHATSAPP_PHONE_NUMBER_ID non configurato.")
+        if not phone_number_id:
+            raise RuntimeError("phone_number_id non configurato per il bot.")
 
         normalized_parameters = [str(value).strip() for value in (body_parameters or []) if str(value).strip()]
         template: dict[str, Any] = {
@@ -92,4 +100,4 @@ class WhatsAppCloudClient:
             "type": "template",
             "template": template,
         }
-        return self._post_message(payload)
+        return self._post_message(phone_number_id, payload)
