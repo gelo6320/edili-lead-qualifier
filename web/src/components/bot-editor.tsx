@@ -1,12 +1,10 @@
 import { Save, Trash2 } from 'lucide-react'
 
 import { FieldListEditor } from '@/components/field-list-editor'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -46,27 +44,13 @@ export function BotEditor({
     onChange({ ...bot, [key]: value })
   }
 
-  const requiredCount = bot.fields.filter((field) => field.required).length
-
   return (
     <div className="grid gap-6">
-      <Card className="border-none bg-card/92 shadow-xl">
-        <CardHeader className="gap-4">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">{isNew ? 'Nuovo bot' : 'Bot esistente'}</Badge>
-                <Badge variant="secondary">{requiredCount} campi richiesti</Badge>
-              </div>
-              <div className="space-y-1">
-                <CardTitle>Configurazione bot</CardTitle>
-                <CardDescription>
-                  Qui definisci prompt, numero WhatsApp target e dati da raccogliere.
-                </CardDescription>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <CardTitle>{isNew ? 'Nuovo bot' : 'Configurazione'}</CardTitle>
+            <div className="flex gap-2">
               {!isNew ? (
                 <Button
                   variant="destructive"
@@ -88,13 +72,13 @@ export function BotEditor({
 
         <CardContent className="grid gap-6">
           {editorNotice ? (
-            <div className="rounded-xl border border-foreground/10 bg-muted/70 px-4 py-3 text-sm">
+            <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm">
               {editorNotice}
             </div>
           ) : null}
 
           {editorError ? (
-            <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
               {editorError}
             </div>
           ) : null}
@@ -201,7 +185,7 @@ export function BotEditor({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="prompt-preamble">Prompt tenant-specific</Label>
+            <Label htmlFor="prompt-preamble">Prompt</Label>
             <Textarea
               id="prompt-preamble"
               className="min-h-36"

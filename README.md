@@ -10,7 +10,7 @@ Il runtime:
 
 La dashboard:
 - vive sulla root `/`
-- usa Supabase Auth via email magic link
+- usa Supabase Auth via email e password
 - amministra i bot in UI minimale con componenti shadcn
 
 ## Cosa e cambiato
@@ -221,7 +221,7 @@ curl "http://localhost:8000/webhooks/whatsapp?hub.mode=subscribe&hub.verify_toke
 7. Metti le loro email in `DASHBOARD_ALLOWED_EMAILS`.
 
 Nota:
-- la dashboard usa `signInWithOtp(...shouldCreateUser: false...)`
+- la dashboard usa `signInWithPassword(...)`
 - quindi l'utente deve gia esistere in Supabase Auth
 
 ## Setup Meta / WhatsApp
@@ -235,15 +235,15 @@ Nota:
 
 ## Deploy Railway
 
-Il repo include [nixpacks.toml](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/nixpacks.toml), quindi Railway puo:
+Il repo include [Dockerfile](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/Dockerfile) e [railway.toml](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/railway.toml), quindi Railway puo:
 - installare dipendenze Python
-- installare e buildare il frontend in `web/`
+- buildare il frontend in `web/`
 - avviare `uvicorn`
 
 Passi:
 1. Collega il repo a Railway.
 2. Imposta tutte le env.
-3. Verifica che Railway usi Nixpacks.
+3. Verifica che Railway usi il `Dockerfile`.
 4. Deploya.
 5. Apri `/healthz`.
 6. Apri `/`.
@@ -253,7 +253,7 @@ Passi:
 Start command atteso:
 
 ```bash
-uvicorn app:app --host 0.0.0.0 --port $PORT
+sh -c 'uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000}'
 ```
 
 ## Verifiche eseguite
@@ -268,8 +268,8 @@ uvicorn app:app --host 0.0.0.0 --port $PORT
 
 ## Riferimenti ufficiali usati
 
-- [Supabase passwordless email logins](https://supabase.com/docs/guides/auth/auth-email-passwordless)
-- [Supabase JS `signInWithOtp`](https://supabase.com/docs/reference/javascript/auth-signinwithotp)
+- [Supabase password-based auth](https://supabase.com/docs/guides/auth/passwords)
+- [Supabase JS `signInWithPassword`](https://supabase.com/docs/reference/javascript/auth-signinwithpassword)
 - [shadcn/ui CLI](https://ui.shadcn.com/docs/cli)
 - [Tailwind CSS with Vite](https://tailwindcss.com/docs/installation/using-vite)
 - [Meta WhatsApp Cloud API Get Started](https://developers.facebook.com/docs/whatsapp/cloud-api/get-started)

@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -52,13 +51,9 @@ export function SendTemplateCard({
   }
 
   return (
-    <Card className="border-none bg-card/90 shadow-lg">
+    <Card>
       <CardHeader>
-        <CardTitle>Invio template</CardTitle>
-        <CardDescription>
-          Avvia la conversazione outbound dal bot selezionato usando un template
-          approvato in Meta.
-        </CardDescription>
+        <CardTitle>Template</CardTitle>
       </CardHeader>
 
       <CardContent className="grid gap-4">
@@ -106,13 +101,13 @@ export function SendTemplateCard({
         </div>
 
         {notice ? (
-          <div className="rounded-xl border border-foreground/10 bg-muted/70 px-4 py-3 text-sm">
+          <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm">
             {notice}
           </div>
         ) : null}
 
         {error ? (
-          <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
             {error}
           </div>
         ) : null}

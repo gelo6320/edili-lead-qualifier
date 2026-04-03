@@ -4,16 +4,13 @@ import { AuthView } from '@/components/auth-view'
 import { BotEditor } from '@/components/bot-editor'
 import { BotList } from '@/components/bot-list'
 import { SendTemplateCard } from '@/components/send-template-card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
 import {
   createEmptyBotConfig,
   cloneBotConfig,
@@ -45,9 +42,9 @@ function App() {
   const [accessToken, setAccessToken] = useState('')
 
   const [authEmail, setAuthEmail] = useState('')
-  const [authNotice, setAuthNotice] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
   const [authError, setAuthError] = useState('')
-  const [isSendingMagicLink, setIsSendingMagicLink] = useState(false)
+  const [isSigningIn, setIsSigningIn] = useState(false)
 
   const [user, setUser] = useState<DashboardUser | null>(null)
   const [bots, setBots] = useState<BotConfig[]>([])
@@ -248,32 +245,26 @@ function App() {
     syncSelection(freshBots, preferredBotId)
   }
 
-  async function handleSendMagicLink() {
+  async function handleSignIn() {
     if (!supabase) {
       setAuthError('Client Supabase non inizializzato.')
       return
     }
 
-    setIsSendingMagicLink(true)
+    setIsSigningIn(true)
     setAuthError('')
-    setAuthNotice('')
 
     const email = authEmail.trim().toLowerCase()
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
-      options: {
-        shouldCreateUser: false,
-        emailRedirectTo: window.location.origin,
-      },
+      password: authPassword,
     })
 
     if (error) {
       setAuthError(error.message)
-    } else {
-      setAuthNotice('Email inviata. Apri il link ricevuto e torna su questa pagina.')
     }
 
-    setIsSendingMagicLink(false)
+    setIsSigningIn(false)
   }
 
   async function handleSignOut() {
@@ -282,7 +273,7 @@ function App() {
     }
 
     await supabase.auth.signOut()
-    setAuthNotice('')
+    setAuthPassword('')
     setAuthError('')
     setEditorNotice('')
     setEditorError('')
@@ -367,17 +358,12 @@ function App() {
     }
   }
 
-  const requiredFields = draftBot.fields.filter((field) => field.required).length
-
   if (isBooting) {
     return (
-      <div className="min-h-screen bg-[linear-gradient(180deg,#faf8f5_0%,#efebe5_100%)] p-6 text-foreground">
-        <Card className="mx-auto mt-24 max-w-xl border-none bg-card/90 shadow-xl">
+      <div className="min-h-screen bg-background p-6 text-foreground">
+        <Card className="mx-auto mt-24 max-w-sm">
           <CardHeader>
-            <CardTitle>Avvio dashboard</CardTitle>
-            <CardDescription>
-              Sto caricando Supabase Auth e le configurazioni del bot.
-            </CardDescription>
+            <CardTitle>Caricamento...</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -386,19 +372,12 @@ function App() {
 
   if (configError) {
     return (
-      <div className="min-h-screen bg-[linear-gradient(180deg,#faf8f5_0%,#efebe5_100%)] p-6 text-foreground">
-        <Card className="mx-auto mt-24 max-w-xl border-none bg-card/95 shadow-xl">
+      <div className="min-h-screen bg-background p-6 text-foreground">
+        <Card className="mx-auto mt-24 max-w-xl">
           <CardHeader>
-            <Badge variant="outline" className="w-fit">
-              Config mancante
-            </Badge>
-            <CardTitle>Dashboard non inizializzata</CardTitle>
-            <CardDescription>{configError}</CardDescription>
+            <CardTitle>Config mancante</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Imposta `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` sul backend, poi
-            ricostruisci il frontend.
-          </CardContent>
+          <CardContent className="text-sm text-muted-foreground">{configError}</CardContent>
         </Card>
       </div>
     )
@@ -409,59 +388,32 @@ function App() {
       <AuthView
         email={authEmail}
         error={authError}
-        notice={authNotice}
+        password={authPassword}
         onEmailChange={setAuthEmail}
-        onSubmit={handleSendMagicLink}
-        pending={isSendingMagicLink}
+        onPasswordChange={setAuthPassword}
+        onSubmit={handleSignIn}
+        pending={isSigningIn}
       />
     )
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(180,83,9,0.12),transparent_32%),radial-gradient(circle_at_top_right,rgba(15,23,42,0.08),transparent_28%),linear-gradient(180deg,#faf8f5_0%,#ece7df_100%)] text-foreground">
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-6 p-4 md:p-6">
-        <Card className="border-none bg-card/85 shadow-xl backdrop-blur">
-          <CardHeader className="gap-4">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div className="space-y-3">
-                <Badge variant="outline" className="w-fit">
-                  Multi-tenant runtime
-                </Badge>
-                <div className="space-y-1">
-                  <CardTitle className="text-3xl tracking-tight">
-                    Lead Qualifier Control
-                  </CardTitle>
-                  <CardDescription className="max-w-2xl text-sm">
-                    Un singolo runtime WhatsApp con configurazioni bot versionabili
-                    in file seed e persistite in Supabase per uso reale.
-                  </CardDescription>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3 md:items-end">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge>{user?.email ?? 'utente sconosciuto'}</Badge>
-                  <Badge variant="secondary">
-                    {bots.length} bot
-                  </Badge>
-                  <Badge variant="secondary">
-                    {requiredFields} campi richiesti
-                  </Badge>
-                </div>
-                <Button variant="outline" onClick={handleSignOut}>
-                  Esci
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-4 p-4 md:p-6">
+        <header className="flex items-center justify-between gap-4 border-b pb-4">
+          <div className="text-sm font-medium">Dashboard</div>
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-muted-foreground">{user?.email}</div>
+            <Button variant="outline" size="sm" onClick={handleSignOut}>
+              Esci
+            </Button>
+          </div>
+        </header>
 
         {dashboardError ? (
-          <Card className="border-none bg-destructive/5 shadow-sm">
-            <CardContent className="pt-4 text-sm text-destructive">
-              {dashboardError}
-            </CardContent>
-          </Card>
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            {dashboardError}
+          </div>
         ) : null}
 
         <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -485,8 +437,6 @@ function App() {
               onDelete={handleDeleteBot}
               onSave={handleSaveBot}
             />
-
-            <Separator className="bg-foreground/10" />
 
             <SendTemplateCard
               bot={draftBot}

@@ -1,11 +1,9 @@
 import { Plus, Trash2 } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -52,18 +50,13 @@ export function FieldListEditor({ bot, onChange }: FieldListEditorProps) {
   }
 
   return (
-    <Card className="border-none bg-card/90 shadow-lg">
-      <CardHeader className="gap-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <CardTitle>Campi da raccogliere</CardTitle>
-            <CardDescription>
-              Questi campi generano lo schema JSON e guidano il prompt di qualifica.
-            </CardDescription>
-          </div>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-4">
+          <CardTitle>Campi</CardTitle>
           <Button size="sm" type="button" onClick={addField}>
             <Plus />
-            Aggiungi campo
+            Aggiungi
           </Button>
         </div>
       </CardHeader>
@@ -72,14 +65,10 @@ export function FieldListEditor({ bot, onChange }: FieldListEditorProps) {
         {bot.fields.map((field, index) => (
           <div
             key={`${field.key}-${index}`}
-            className="rounded-2xl border border-foreground/10 bg-background/80 p-4"
+            className="rounded-lg border bg-background p-4"
           >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">Campo {index + 1}</Badge>
-                {field.required ? <Badge>richiesto</Badge> : null}
-              </div>
-
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="text-sm font-medium">Campo {index + 1}</div>
               <Button
                 size="icon-sm"
                 type="button"
@@ -128,9 +117,7 @@ export function FieldListEditor({ bot, onChange }: FieldListEditorProps) {
 
             <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
               <div className="grid gap-2">
-                <Label htmlFor={`field-options-${index}`}>
-                  Opzioni ammesse
-                </Label>
+                <Label htmlFor={`field-options-${index}`}>Opzioni</Label>
                 <Input
                   id={`field-options-${index}`}
                   placeholder="si, no, forse"
@@ -150,12 +137,7 @@ export function FieldListEditor({ bot, onChange }: FieldListEditorProps) {
                     updateField(index, { required: Boolean(checked) })
                   }
                 />
-                <div className="space-y-0.5">
-                  <div className="text-sm font-medium">Richiesto</div>
-                  <div className="text-xs text-muted-foreground">
-                    Se spento, il bot puo ignorarlo.
-                  </div>
-                </div>
+                <Label>Richiesto</Label>
               </div>
             </div>
           </div>

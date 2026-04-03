@@ -1,9 +1,7 @@
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -26,15 +24,10 @@ export function BotList({
   selectedBotId,
 }: BotListProps) {
   return (
-    <Card className="border-none bg-card/88 shadow-xl backdrop-blur">
-      <CardHeader className="gap-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
-            <CardTitle>Bot</CardTitle>
-            <CardDescription>
-              Ogni bot mappa prompt, campi richiesti e numero WhatsApp.
-            </CardDescription>
-          </div>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle>Bot</CardTitle>
           <Button size="sm" onClick={onCreate}>
             Nuovo
           </Button>
@@ -43,14 +36,14 @@ export function BotList({
 
       <CardContent className="grid gap-3">
         {loading ? (
-          <div className="rounded-xl border border-foreground/10 bg-background/70 p-4 text-sm text-muted-foreground">
-            Caricamento configurazioni...
+          <div className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+            Caricamento...
           </div>
         ) : null}
 
         {!loading && bots.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-foreground/15 bg-background/70 p-4 text-sm text-muted-foreground">
-            Nessun bot presente. Crea il primo tenant.
+          <div className="rounded-lg border border-dashed bg-muted/20 p-3 text-sm text-muted-foreground">
+            Nessun bot
           </div>
         ) : null}
 
@@ -61,37 +54,18 @@ export function BotList({
               key={bot.id}
               type="button"
               className={cn(
-                'rounded-2xl border p-4 text-left transition-all',
+                'rounded-lg border p-3 text-left transition-colors',
                 isActive
-                  ? 'border-transparent bg-primary text-primary-foreground shadow-lg'
-                  : 'border-foreground/10 bg-background/70 hover:border-foreground/20 hover:bg-background',
+                  ? 'border-primary bg-accent'
+                  : 'bg-background hover:bg-muted/30',
               )}
               onClick={() => onSelect(bot.id)}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="font-medium">{bot.name}</div>
-                  <div
-                    className={cn(
-                      'text-sm',
-                      isActive
-                        ? 'text-primary-foreground/75'
-                        : 'text-muted-foreground',
-                    )}
-                  >
-                    {bot.company_name || 'Azienda non impostata'}
-                  </div>
+              <div className="space-y-1">
+                <div className="font-medium">{bot.name}</div>
+                <div className="text-sm text-muted-foreground">
+                  {bot.company_name || bot.id}
                 </div>
-                <Badge variant={isActive ? 'secondary' : 'outline'}>{bot.id}</Badge>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                <Badge variant={isActive ? 'secondary' : 'outline'}>
-                  {bot.fields.length} campi
-                </Badge>
-                <Badge variant={isActive ? 'secondary' : 'outline'}>
-                  {bot.phone_number_id || 'phone_number_id mancante'}
-                </Badge>
               </div>
             </button>
           )
