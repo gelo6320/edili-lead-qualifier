@@ -395,9 +395,6 @@ function App() {
 
   // --- Main dashboard shell ---
 
-  const selectedBotLabel =
-    bots.find((b) => b.id === selectedBotId)?.name || (draftMode === 'new' ? 'Nuovo bot' : 'Seleziona bot')
-
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
       {/* ═══ Top bar ═══ */}
