@@ -27,14 +27,16 @@ La dashboard:
 ## Architettura
 
 - [app.py](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/app.py): entrypoint ASGI
-- [lead_qualifier/app_factory.py](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/lead_qualifier/app_factory.py): bootstrap app, store, router, static dashboard
-- [lead_qualifier/bot_config_store.py](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/lead_qualifier/bot_config_store.py): store ibrido config files -> Supabase runtime
-- [lead_qualifier/prompting.py](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/lead_qualifier/prompting.py): prompt e schema JSON dinamici
-- [lead_qualifier/message_service.py](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/lead_qualifier/message_service.py): pipeline inbound WhatsApp
-- [lead_qualifier/postgres_store.py](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/lead_qualifier/postgres_store.py): persistenza lead runtime su Supabase Postgres
-- [lead_qualifier/dashboard_api_router.py](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/lead_qualifier/dashboard_api_router.py): API dashboard
-- [lead_qualifier/dashboard_auth.py](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/lead_qualifier/dashboard_auth.py): validazione sessione Supabase Auth
-- [web/src/App.tsx](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/web/src/App.tsx): dashboard SPA
+- [lead_qualifier/app/factory.py](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/lead_qualifier/app/factory.py): bootstrap app, store, router, static dashboard
+- [lead_qualifier/api](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/lead_qualifier/api): router HTTP, auth dashboard/admin, schemi request/response
+- [lead_qualifier/domain](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/lead_qualifier/domain): modelli core del bot e del lead
+- [lead_qualifier/integrations](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/lead_qualifier/integrations): client Anthropic, WhatsApp e lead manager
+- [lead_qualifier/prompting](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/lead_qualifier/prompting): prompt base fisso e builder del prompt runtime
+- [lead_qualifier/services](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/lead_qualifier/services): logica applicativa inbound/outbound e tool agent
+- [lead_qualifier/storage](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/lead_qualifier/storage): persistenza config e stato lead
+- [web/src/app/App.tsx](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/web/src/app/App.tsx): shell dashboard
+- [web/src/features](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/web/src/features): componenti UI organizzati per feature
+- [web/src/shared](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/web/src/shared): librerie, tipi e componenti UI riusabili
 - [supabase/migrations/20260403_020000_create_multitenant_runtime.sql](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/supabase/migrations/20260403_020000_create_multitenant_runtime.sql): schema runtime multi-tenant
 
 ## Dati su Supabase

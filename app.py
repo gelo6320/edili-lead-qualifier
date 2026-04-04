@@ -1,3 +1,3 @@
-from lead_qualifier.app_factory import create_app
+from lead_qualifier.app.factory import create_app
 
 app = create_app()
