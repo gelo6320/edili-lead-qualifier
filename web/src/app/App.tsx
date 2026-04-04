@@ -17,6 +17,32 @@ import { AuthView } from '@/features/auth/components/auth-view'
 import { BotEditor } from '@/features/bots/components/bot-editor'
 import { ChatView } from '@/features/chat/components/chat-view'
 import { SendTemplateCard } from '@/features/templates/components/send-template-card'
+import {
+  cloneBotConfig,
+  createEmptyBotConfig,
+} from '@/shared/lib/bot-config'
+import {
+  crawlSite,
+  createBot,
+  DashboardApiError,
+  deleteBot,
+  getDashboardAppConfig,
+  getDashboardSession,
+  getMetaAssets,
+  listBots,
+  sendTestTemplate,
+  startMetaOAuth,
+  updateBot,
+} from '@/shared/lib/dashboard-api'
+import { getBrowserSupabaseClient } from '@/shared/lib/supabase-browser'
+import type {
+  BotConfig,
+  DashboardAppConfig,
+  DashboardUser,
+  MetaAssetsPayload,
+  TemplateTestRequest,
+} from '@/shared/lib/types'
+import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import {
   Card,
@@ -24,27 +50,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/shared/ui/card'
-import {
-  createEmptyBotConfig,
-  cloneBotConfig,
-} from '@/shared/lib/bot-config'
-import {
-  createBot,
-  DashboardApiError,
-  deleteBot,
-  getDashboardAppConfig,
-  getDashboardSession,
-  listBots,
-  sendTestTemplate,
-  updateBot,
-} from '@/shared/lib/dashboard-api'
-import { getBrowserSupabaseClient } from '@/shared/lib/supabase-browser'
-import { cn } from '@/shared/lib/utils'
-import type {
-  BotConfig,
-  DashboardUser,
-  TemplateTestRequest,
-} from '@/shared/lib/types'
 
 type Section = 'config' | 'template' | 'chat'
 
@@ -54,9 +59,21 @@ const NAV_ITEMS: { id: Section; label: string; icon: typeof Settings }[] = [
   { id: 'chat', label: 'Chat', icon: MessageCircle },
 ]
 
+const EMPTY_META_ASSETS: MetaAssetsPayload = {
+  connected: false,
+  profile: null,
+  page_options: [],
+  waba_options: [],
+}
+
+function normalizeUrlMessage(value: string): string {
+  return value.replaceAll('_', ' ')
+}
+
 function App() {
   const [configError, setConfigError] = useState('')
   const [isBooting, setIsBooting] = useState(true)
+  const [appConfig, setAppConfig] = useState<DashboardAppConfig | null>(null)
 
   const [supabase, setSupabase] = useState<ReturnType<
     typeof getBrowserSupabaseClient
@@ -82,6 +99,13 @@ function App() {
   const [templateNotice, setTemplateNotice] = useState('')
   const [templateError, setTemplateError] = useState('')
   const [isSendingTemplate, setIsSendingTemplate] = useState(false)
+  const [metaAssets, setMetaAssets] = useState<MetaAssetsPayload>(EMPTY_META_ASSETS)
+  const [metaAssetsError, setMetaAssetsError] = useState('')
+  const [isLoadingMetaAssets, setIsLoadingMetaAssets] = useState(false)
+  const [isConnectingMeta, setIsConnectingMeta] = useState(false)
+  const [crawlNotice, setCrawlNotice] = useState('')
+  const [crawlError, setCrawlError] = useState('')
+  const [isCrawlingSite, setIsCrawlingSite] = useState(false)
 
   const [activeSection, setActiveSection] = useState<Section>('config')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -105,6 +129,8 @@ function App() {
       try {
         const nextAppConfig = await getDashboardAppConfig()
         if (!active) return
+
+        setAppConfig(nextAppConfig)
 
         if (
           !nextAppConfig.supabase_url ||
@@ -162,6 +188,10 @@ function App() {
       setDraftBot(createEmptyBotConfig())
       setDraftMode('new')
       setDashboardError('')
+      setMetaAssets(EMPTY_META_ASSETS)
+      setMetaAssetsError('')
+      setCrawlNotice('')
+      setCrawlError('')
       return
     }
 
@@ -208,6 +238,77 @@ function App() {
     }
   }, [accessToken, supabase])
 
+  useEffect(() => {
+    if (!accessToken) {
+      setMetaAssets(EMPTY_META_ASSETS)
+      setMetaAssetsError('')
+      setIsLoadingMetaAssets(false)
+      return
+    }
+
+    let active = true
+    async function loadAssets() {
+      setIsLoadingMetaAssets(true)
+      setMetaAssetsError('')
+
+      try {
+        const assets = await getMetaAssets(accessToken)
+        if (!active) return
+        setMetaAssets(assets)
+      } catch (error) {
+        if (!active) return
+        setMetaAssetsError(
+          error instanceof DashboardApiError
+            ? error.detail
+            : 'Impossibile caricare asset Meta.',
+        )
+      } finally {
+        if (active) setIsLoadingMetaAssets(false)
+      }
+    }
+
+    void loadAssets()
+
+    return () => {
+      active = false
+    }
+  }, [accessToken])
+
+  useEffect(() => {
+    if (!accessToken || typeof window === 'undefined') {
+      return
+    }
+
+    const url = new URL(window.location.href)
+    const oauthStatus = url.searchParams.get('meta_oauth')
+    if (!oauthStatus) {
+      return
+    }
+
+    const message = normalizeUrlMessage(url.searchParams.get('message') ?? '')
+    if (oauthStatus === 'success') {
+      setEditorError('')
+      setEditorNotice('Account Facebook collegato. Asset aggiornati in dashboard.')
+    } else {
+      setEditorNotice('')
+      setEditorError(message || 'Connessione Facebook fallita.')
+    }
+
+    url.searchParams.delete('meta_oauth')
+    url.searchParams.delete('message')
+    const cleanUrl = `${url.pathname}${url.search}${url.hash}`
+    window.history.replaceState({}, '', cleanUrl)
+  }, [accessToken])
+
+  function clearEditorFeedback() {
+    setEditorNotice('')
+    setEditorError('')
+    setTemplateNotice('')
+    setTemplateError('')
+    setCrawlNotice('')
+    setCrawlError('')
+  }
+
   function syncSelection(botList: BotConfig[], preferredBotId: string | null) {
     if (preferredBotId) {
       const selectedBot = botList.find((bot) => bot.id === preferredBotId)
@@ -239,18 +340,14 @@ function App() {
     setSelectedBotId(selectedBot.id)
     setDraftBot(cloneBotConfig(selectedBot))
     setDraftMode('existing')
-    setEditorNotice('')
-    setEditorError('')
-    setTemplateNotice('')
-    setTemplateError('')
+    clearEditorFeedback()
   }
 
   function createNewDraft() {
     setSelectedBotId(null)
     setDraftBot(createEmptyBotConfig())
     setDraftMode('new')
-    setEditorNotice('')
-    setEditorError('')
+    clearEditorFeedback()
     setActiveSection('config')
     setMobileNavOpen(false)
   }
@@ -261,6 +358,29 @@ function App() {
     const freshBots = await listBots(accessToken)
     setBots(freshBots)
     syncSelection(freshBots, preferredBotId)
+  }
+
+  async function refreshMetaAssets() {
+    if (!accessToken) {
+      setMetaAssets(EMPTY_META_ASSETS)
+      return
+    }
+
+    setIsLoadingMetaAssets(true)
+    setMetaAssetsError('')
+
+    try {
+      const assets = await getMetaAssets(accessToken)
+      setMetaAssets(assets)
+    } catch (error) {
+      setMetaAssetsError(
+        error instanceof DashboardApiError
+          ? error.detail
+          : 'Impossibile caricare asset Meta.',
+      )
+    } finally {
+      setIsLoadingMetaAssets(false)
+    }
   }
 
   async function handleSignIn() {
@@ -288,10 +408,9 @@ function App() {
     await supabase.auth.signOut()
     setAuthPassword('')
     setAuthError('')
-    setEditorNotice('')
-    setEditorError('')
-    setTemplateNotice('')
-    setTemplateError('')
+    clearEditorFeedback()
+    setMetaAssets(EMPTY_META_ASSETS)
+    setMetaAssetsError('')
   }
 
   async function handleSaveBot() {
@@ -307,9 +426,7 @@ function App() {
           ? await createBot(accessToken, draftBot)
           : await updateBot(accessToken, draftBot)
 
-      setEditorNotice(
-        draftMode === 'new' ? 'Creato.' : 'Salvato.',
-      )
+      setEditorNotice(draftMode === 'new' ? 'Creato.' : 'Salvato.')
       await refreshBots(savedBot.id)
     } catch (error) {
       setEditorError(
@@ -363,7 +480,57 @@ function App() {
     }
   }
 
-  // --- Early returns for boot / config error / auth ---
+  async function handleConnectMeta() {
+    if (!accessToken || !appConfig?.meta_oauth_enabled) return
+
+    setIsConnectingMeta(true)
+    setEditorNotice('')
+    setEditorError('')
+
+    try {
+      const payload = await startMetaOAuth(accessToken)
+      window.location.assign(payload.authorize_url)
+    } catch (error) {
+      setEditorError(
+        error instanceof DashboardApiError
+          ? error.detail
+          : "Impossibile avviare l'OAuth Facebook.",
+      )
+      setIsConnectingMeta(false)
+    }
+  }
+
+  async function handleCrawlSite(siteUrl: string) {
+    if (!accessToken || draftMode !== 'existing') return
+
+    const normalizedUrl = siteUrl.trim()
+    if (!normalizedUrl) {
+      setCrawlError('Inserisci un URL valido prima di avviare il crawl.')
+      return
+    }
+
+    setIsCrawlingSite(true)
+    setCrawlNotice('')
+    setCrawlError('')
+
+    try {
+      const result = await crawlSite(accessToken, draftBot.id, {
+        site_url: normalizedUrl,
+      })
+      setCrawlNotice(
+        `Sito analizzato: ${result.pages_crawled} pagine e ${result.chunks_stored} chunk salvati.`,
+      )
+      await refreshBots(result.bot.id)
+    } catch (error) {
+      setCrawlError(
+        error instanceof DashboardApiError
+          ? error.detail
+          : 'Crawl sito fallito.',
+      )
+    } finally {
+      setIsCrawlingSite(false)
+    }
+  }
 
   if (isBooting) {
     return (
@@ -407,8 +574,6 @@ function App() {
     )
   }
 
-  // --- Main dashboard shell ---
-
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
       <header className="flex h-14 flex-shrink-0 items-center gap-2 border-b border-border/60 bg-card/90 px-3 backdrop-blur lg:px-4">
@@ -445,9 +610,9 @@ function App() {
           <select
             className="h-9 w-full cursor-pointer appearance-none rounded-lg border border-border/60 bg-background py-0 pr-8 pl-3 text-sm font-medium transition-colors hover:border-border focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
             value={selectedBotId ?? ''}
-            onChange={(e) => {
-              if (e.target.value) {
-                selectBot(e.target.value)
+            onChange={(event) => {
+              if (event.target.value) {
+                selectBot(event.target.value)
                 return
               }
               createNewDraft()
@@ -564,13 +729,25 @@ function App() {
           {activeSection === 'config' ? (
             <BotEditor
               bot={draftBot}
+              cloudflareCrawlEnabled={Boolean(appConfig?.cloudflare_crawl_enabled)}
+              crawlError={crawlError}
+              crawlNotice={crawlNotice}
               editorError={editorError}
               editorNotice={editorNotice}
+              isConnectingMeta={isConnectingMeta}
+              isCrawlingSite={isCrawlingSite}
               isDeleting={isDeletingBot}
+              isLoadingMetaAssets={isLoadingMetaAssets}
               isNew={draftMode === 'new'}
               isSaving={isSavingBot}
+              metaAssets={metaAssets}
+              metaAssetsError={metaAssetsError}
+              metaOauthEnabled={Boolean(appConfig?.meta_oauth_enabled)}
               onChange={setDraftBot}
+              onConnectMeta={handleConnectMeta}
+              onCrawlSite={handleCrawlSite}
               onDelete={handleDeleteBot}
+              onReloadMetaAssets={refreshMetaAssets}
               onSave={handleSaveBot}
             />
           ) : null}

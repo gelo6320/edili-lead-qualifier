@@ -26,6 +26,7 @@ class Settings:
     anthropic_api_key: str
     anthropic_model: str
     admin_api_key: str
+    app_base_url: str
     database_url: str
     database_schema: str
     database_pool_min_size: int
@@ -33,9 +34,13 @@ class Settings:
     database_pool_timeout_seconds: float
     supabase_url: str
     supabase_publishable_key: str
+    supabase_service_role_key: str
     dashboard_allowed_emails: list[str]
     bot_config_dir: str
     dashboard_dist_dir: str
+    meta_app_id: str
+    meta_api_version: str
+    oauth_state_secret: str
     whatsapp_api_base_url: str
     whatsapp_graph_version: str
     whatsapp_access_token: str
@@ -45,6 +50,9 @@ class Settings:
     meta_enforce_signature: bool
     lead_manager_api_url: str
     lead_manager_api_key: str
+    cloudflare_account_id: str
+    cloudflare_api_token: str
+    cloudflare_crawl_timeout_seconds: float
     sqlite_path: str
     log_level: str
 
@@ -69,6 +77,7 @@ class Settings:
             anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", "").strip(),
             anthropic_model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6").strip() or "claude-sonnet-4-6",
             admin_api_key=os.getenv("ADMIN_API_KEY", "").strip(),
+            app_base_url=os.getenv("APP_BASE_URL", "").rstrip("/"),
             database_url=os.getenv("DATABASE_URL", "").strip(),
             database_schema=os.getenv("DATABASE_SCHEMA", "public").strip() or "public",
             database_pool_min_size=database_pool_min_size,
@@ -76,9 +85,13 @@ class Settings:
             database_pool_timeout_seconds=max(float(os.getenv("DATABASE_POOL_TIMEOUT_SECONDS", "10")), 1.0),
             supabase_url=os.getenv("SUPABASE_URL", "").rstrip("/"),
             supabase_publishable_key=os.getenv("SUPABASE_PUBLISHABLE_KEY", "").strip(),
+            supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip(),
             dashboard_allowed_emails=_env_list("DASHBOARD_ALLOWED_EMAILS"),
             bot_config_dir=os.getenv("BOT_CONFIG_DIR", "bot_configs").strip() or "bot_configs",
             dashboard_dist_dir=os.getenv("DASHBOARD_DIST_DIR", "web/dist").strip() or "web/dist",
+            meta_app_id=os.getenv("META_APP_ID", "").strip(),
+            meta_api_version=os.getenv("META_API_VERSION", "v25.0").strip() or "v25.0",
+            oauth_state_secret=os.getenv("OAUTH_STATE_SECRET", "").strip(),
             whatsapp_api_base_url=os.getenv("WHATSAPP_API_BASE_URL", "https://graph.facebook.com").rstrip("/"),
             whatsapp_graph_version=os.getenv("WHATSAPP_GRAPH_VERSION", "v23.0").strip() or "v23.0",
             whatsapp_access_token=os.getenv("WHATSAPP_ACCESS_TOKEN", "").strip(),
@@ -88,6 +101,12 @@ class Settings:
             meta_enforce_signature=_env_flag("META_ENFORCE_SIGNATURE", True),
             lead_manager_api_url=os.getenv("LEAD_MANAGER_API_URL", "").rstrip("/"),
             lead_manager_api_key=os.getenv("LEAD_MANAGER_API_KEY", "").strip(),
+            cloudflare_account_id=os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip(),
+            cloudflare_api_token=os.getenv("CLOUDFLARE_API_TOKEN", "").strip(),
+            cloudflare_crawl_timeout_seconds=max(
+                float(os.getenv("CLOUDFLARE_CRAWL_TIMEOUT_SECONDS", "90")),
+                10.0,
+            ),
             sqlite_path=os.getenv("SQLITE_PATH", "data/lead_qualifier.sqlite3").strip() or "data/lead_qualifier.sqlite3",
             log_level=os.getenv("LOG_LEVEL", "INFO").upper().strip() or "INFO",
         )

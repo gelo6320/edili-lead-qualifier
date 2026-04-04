@@ -9,14 +9,21 @@ from fastapi.staticfiles import StaticFiles
 
 from lead_qualifier.api.admin_router import build_admin_router
 from lead_qualifier.api.dashboard_router import build_dashboard_api_router
+from lead_qualifier.api.internal_router import build_internal_router
 from lead_qualifier.api.webhook_router import build_webhook_router
 from lead_qualifier.core.settings import Settings
 from lead_qualifier.integrations.anthropic.client import AnthropicLeadQualifier
 from lead_qualifier.integrations.lead_manager.client import LeadManagerClient
 from lead_qualifier.integrations.whatsapp.client import WhatsAppCloudClient
 from lead_qualifier.services.agent_toolbox import LeadQualifierToolbox
+from lead_qualifier.services.cloudflare_crawl import CloudflareCrawlClient
 from lead_qualifier.services.inbound import InboundMessageService
 from lead_qualifier.services.outbound import OutboundMessageService
+from lead_qualifier.services.supabase_admin import SupabaseAdminClient
+from lead_qualifier.services.meta_integration import MetaIntegrationService
+from lead_qualifier.services.knowledge_base import KnowledgeBaseService
+from lead_qualifier.services.runtime_credentials import RuntimeCredentialsService
+from lead_qualifier.services.website_personalization import WebsitePersonalizationService
 from lead_qualifier.storage.bot_config_store import BotConfigStore
 from lead_qualifier.storage.factory import create_lead_store
 
@@ -37,12 +44,34 @@ def create_app() -> FastAPI:
         max_size=4,
         timeout_seconds=settings.database_pool_timeout_seconds,
     )
-    lead_manager_client = LeadManagerClient(settings)
+    supabase_admin = SupabaseAdminClient(settings)
+    meta_integration = MetaIntegrationService(settings, supabase_admin)
+    lead_manager_client = LeadManagerClient(settings, meta_integration)
     toolbox = LeadQualifierToolbox(lead_manager_client)
     qualifier = AnthropicLeadQualifier(settings, toolbox)
     whatsapp_client = WhatsAppCloudClient(settings)
-    message_service = InboundMessageService(store, config_store, qualifier, whatsapp_client)
-    outbound_service = OutboundMessageService(store, config_store, whatsapp_client)
+    runtime_credentials = RuntimeCredentialsService(settings, meta_integration)
+    knowledge_base = KnowledgeBaseService(settings)
+    crawl_client = CloudflareCrawlClient(settings)
+    website_personalization = WebsitePersonalizationService(
+        settings,
+        crawl_client,
+        knowledge_base,
+    )
+    message_service = InboundMessageService(
+        store,
+        config_store,
+        qualifier,
+        whatsapp_client,
+        runtime_credentials,
+        website_personalization,
+    )
+    outbound_service = OutboundMessageService(
+        store,
+        config_store,
+        whatsapp_client,
+        runtime_credentials,
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -51,6 +80,7 @@ def create_app() -> FastAPI:
         finally:
             store.close()
             config_store.close()
+            knowledge_base.close()
 
     app = FastAPI(
         title="WhatsApp Lead Qualifier",
@@ -59,7 +89,17 @@ def create_app() -> FastAPI:
     )
     app.include_router(build_webhook_router(settings, message_service))
     app.include_router(build_admin_router(settings, outbound_service))
-    app.include_router(build_dashboard_api_router(settings, config_store, outbound_service, lead_store=store))
+    app.include_router(build_internal_router(meta_integration, outbound_service))
+    app.include_router(
+        build_dashboard_api_router(
+            settings,
+            config_store,
+            outbound_service,
+            lead_store=store,
+            meta_integration=meta_integration,
+            website_personalization=website_personalization,
+        )
+    )
 
     assets_dir = settings.dashboard_dist_path / "assets"
     if assets_dir.exists():

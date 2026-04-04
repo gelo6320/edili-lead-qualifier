@@ -77,3 +77,30 @@ class TemplateTestRequest(BaseModel):
 
 class BotConfigRequest(BotConfig):
     pass
+
+
+class SiteCrawlRequest(BaseModel):
+    site_url: str = Field(..., description="URL del sito da analizzare con Cloudflare /crawl.")
+
+    @field_validator("site_url", mode="before")
+    @classmethod
+    def _strip_site_url(cls, value: object) -> str:
+        return str(value or "").strip()
+
+
+class BridgeQualificationRequest(BaseModel):
+    page_id: str = Field(..., description="Page ID del lead manager che ha generato il lead.")
+    bot_id: str = Field(..., description="Configurazione qualificatore attesa per la pagina.")
+    phone: str = Field(..., description="Telefono del lead.")
+    full_name: str | None = Field(default=None)
+    email: str | None = Field(default=None)
+    leadgen_id: str | None = Field(default=None)
+    source_label: str | None = Field(default=None)
+    form_responses: list[str] = Field(default_factory=list)
+    custom_fields: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("page_id", "bot_id", "phone", "full_name", "email", "leadgen_id", "source_label", mode="before")
+    @classmethod
+    def _strip_bridge_strings(cls, value: object) -> str | None:
+        stripped = str(value or "").strip()
+        return stripped or None

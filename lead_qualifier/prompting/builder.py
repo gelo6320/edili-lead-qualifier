@@ -65,6 +65,7 @@ def build_system_blocks(
     lead_state: LeadState,
     *,
     tool_rules: str,
+    knowledge_context: str = "",
 ) -> list[dict[str, Any]]:
     objective_lines = "\n".join(
         f"{index}. {field.label}"
@@ -103,6 +104,15 @@ def build_system_blocks(
         conversation_bootstrap=_format_conversation_bootstrap(lead_state),
         lead_manager_status=_format_lead_manager_status(lead_state),
     )
+
+    if knowledge_context.strip():
+        runtime_prompt = (
+            f"{runtime_prompt}\n\n"
+            "Knowledge base rilevante per questa richiesta:\n"
+            f"{knowledge_context.strip()}\n\n"
+            "Usa questa knowledge base solo quando risponde in modo diretto alla domanda del lead. "
+            "Se il contesto non basta, non inventare dettagli."
+        )
 
     return [
         {

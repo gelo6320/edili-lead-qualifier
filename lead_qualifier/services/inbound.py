@@ -11,6 +11,8 @@ from lead_qualifier.services.lead_state import (
     infer_initial_template_from_history,
     with_contact_name,
 )
+from lead_qualifier.services.runtime_credentials import RuntimeCredentialsService
+from lead_qualifier.services.website_personalization import WebsitePersonalizationService
 from lead_qualifier.storage.bot_config_store import BotConfigStore
 from lead_qualifier.storage.protocol import LeadStore
 
@@ -28,11 +30,15 @@ class InboundMessageService:
         config_store: BotConfigStore,
         qualifier: AnthropicLeadQualifier,
         whatsapp_client: WhatsAppCloudClient,
+        runtime_credentials: RuntimeCredentialsService,
+        website_personalization: WebsitePersonalizationService,
     ) -> None:
         self._store = store
         self._config_store = config_store
         self._qualifier = qualifier
         self._whatsapp_client = whatsapp_client
+        self._runtime_credentials = runtime_credentials
+        self._website_personalization = website_personalization
 
     def process_payload(self, payload: dict) -> None:
         for message in iter_inbound_messages(payload):
@@ -53,12 +59,14 @@ class InboundMessageService:
             return
 
         try:
+            access_token = self._runtime_credentials.get_whatsapp_access_token(config)
             if not message.text:
                 self._whatsapp_client.send_text_message(
                     to=message.wa_id,
                     body=UNSUPPORTED_MESSAGE_REPLY,
                     phone_number_id=config.phone_number_id,
                     reply_to_message_id=message.message_id,
+                    access_token=access_token,
                 )
                 self._store.mark_inbound_message_completed(message.message_id)
                 return
@@ -80,12 +88,17 @@ class InboundMessageService:
                 lead_state=lead_state,
                 wa_id=message.wa_id,
                 contact_name=message.contact_name,
+                knowledge_context=self._website_personalization.search_context(
+                    bot_id=config.id,
+                    query=message.text,
+                ),
             )
             self._whatsapp_client.send_text_message(
                 to=message.wa_id,
                 body=response.reply_text,
                 phone_number_id=config.phone_number_id,
                 reply_to_message_id=message.message_id,
+                access_token=access_token,
             )
             self._store.save_message(config.id, message.wa_id, response.to_stored_message())
             self._store.save_lead_state(config.id, message.wa_id, response.to_lead_state(metadata))

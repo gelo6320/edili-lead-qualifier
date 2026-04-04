@@ -4,6 +4,8 @@ import type {
   DashboardAppConfig,
   DashboardSessionPayload,
   LeadSummary,
+  MetaAssetsPayload,
+  SiteCrawlRequest,
   TemplateSendRequest,
   TemplateTestRequest,
 } from '@/shared/lib/types'
@@ -140,6 +142,46 @@ export function listLeadMessages(token: string, botId: string, waId: string) {
   return dashboardFetch<ChatMessage[]>(
     `/api/dashboard/bots/${botId}/leads/${waId}/messages`,
     undefined,
+    token,
+  )
+}
+
+export function startMetaOAuth(token: string) {
+  return dashboardFetch<{ authorize_url: string }>(
+    '/api/dashboard/meta/oauth/start',
+    undefined,
+    token,
+  )
+}
+
+export function getMetaAssets(token: string) {
+  return dashboardFetch<MetaAssetsPayload>(
+    '/api/dashboard/meta/assets',
+    undefined,
+    token,
+  )
+}
+
+export function crawlSite(
+  token: string,
+  botId: string,
+  payload: SiteCrawlRequest,
+) {
+  return dashboardFetch<{
+    bot: BotConfig
+    pages_crawled: number
+    chunks_stored: number
+    summary: {
+      company_description: string
+      service_area: string
+      company_services: string[]
+    }
+  }>(
+    `/api/dashboard/bots/${botId}/crawl-site`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
     token,
   )
 }

@@ -22,8 +22,6 @@ class BotConfigStore:
     ) -> None:
         self._config_dir = config_dir
         self._config_dir.mkdir(parents=True, exist_ok=True)
-        self._schema = schema
-        self._table_name = "bot_configs"
         self._table = f"{schema}.bot_configs"
         self._pool: ConnectionPool | None = None
 
@@ -40,7 +38,6 @@ class BotConfigStore:
                 },
             )
             self._pool.wait()
-            self._ensure_runtime_columns()
             self._bootstrap_from_files_if_needed()
 
     def list_configs(self) -> list[BotConfig]:
@@ -53,17 +50,26 @@ class BotConfigStore:
                     f"""
                     SELECT
                         bot_id,
+                        owner_user_id,
                         name,
                         company_name,
                         company_description,
                         service_area,
                         company_services_json::text AS company_services_json,
+                        website_url,
                         agent_name,
                         phone_number_id,
+                        whatsapp_display_phone_number,
+                        meta_business_id,
+                        meta_business_name,
+                        meta_waba_id,
+                        meta_waba_name,
                         default_template_name,
+                        default_template_variable_count,
                         template_language,
                         booking_url,
                         lead_manager_page_id,
+                        lead_manager_page_name,
                         qualification_statuses_json::text AS qualification_statuses_json,
                         fields_json::text AS fields_json
                     FROM {self._table}
@@ -84,17 +90,26 @@ class BotConfigStore:
                     f"""
                     SELECT
                         bot_id,
+                        owner_user_id,
                         name,
                         company_name,
                         company_description,
                         service_area,
                         company_services_json::text AS company_services_json,
+                        website_url,
                         agent_name,
                         phone_number_id,
+                        whatsapp_display_phone_number,
+                        meta_business_id,
+                        meta_business_name,
+                        meta_waba_id,
+                        meta_waba_name,
                         default_template_name,
+                        default_template_variable_count,
                         template_language,
                         booking_url,
                         lead_manager_page_id,
+                        lead_manager_page_name,
                         qualification_statuses_json::text AS qualification_statuses_json,
                         fields_json::text AS fields_json
                     FROM {self._table}
@@ -131,17 +146,26 @@ class BotConfigStore:
                     f"""
                     SELECT
                         bot_id,
+                        owner_user_id,
                         name,
                         company_name,
                         company_description,
                         service_area,
                         company_services_json::text AS company_services_json,
+                        website_url,
                         agent_name,
                         phone_number_id,
+                        whatsapp_display_phone_number,
+                        meta_business_id,
+                        meta_business_name,
+                        meta_waba_id,
+                        meta_waba_name,
                         default_template_name,
+                        default_template_variable_count,
                         template_language,
                         booking_url,
                         lead_manager_page_id,
+                        lead_manager_page_name,
                         qualification_statuses_json::text AS qualification_statuses_json,
                         fields_json::text AS fields_json
                     FROM {self._table}
@@ -167,51 +191,78 @@ class BotConfigStore:
                     f"""
                     INSERT INTO {self._table} (
                         bot_id,
+                        owner_user_id,
                         name,
                         company_name,
                         company_description,
                         service_area,
                         company_services_json,
+                        website_url,
                         agent_name,
                         phone_number_id,
+                        whatsapp_display_phone_number,
+                        meta_business_id,
+                        meta_business_name,
+                        meta_waba_id,
+                        meta_waba_name,
                         default_template_name,
+                        default_template_variable_count,
                         template_language,
                         booking_url,
                         lead_manager_page_id,
+                        lead_manager_page_name,
                         qualification_statuses_json,
                         fields_json,
                         updated_at
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, timezone('utc', now()))
+                    VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, timezone('utc', now()))
                     ON CONFLICT (bot_id) DO UPDATE SET
+                        owner_user_id = excluded.owner_user_id,
                         name = excluded.name,
                         company_name = excluded.company_name,
                         company_description = excluded.company_description,
                         service_area = excluded.service_area,
                         company_services_json = excluded.company_services_json,
+                        website_url = excluded.website_url,
                         agent_name = excluded.agent_name,
                         phone_number_id = excluded.phone_number_id,
+                        whatsapp_display_phone_number = excluded.whatsapp_display_phone_number,
+                        meta_business_id = excluded.meta_business_id,
+                        meta_business_name = excluded.meta_business_name,
+                        meta_waba_id = excluded.meta_waba_id,
+                        meta_waba_name = excluded.meta_waba_name,
                         default_template_name = excluded.default_template_name,
+                        default_template_variable_count = excluded.default_template_variable_count,
                         template_language = excluded.template_language,
                         booking_url = excluded.booking_url,
                         lead_manager_page_id = excluded.lead_manager_page_id,
+                        lead_manager_page_name = excluded.lead_manager_page_name,
                         qualification_statuses_json = excluded.qualification_statuses_json,
                         fields_json = excluded.fields_json,
                         updated_at = timezone('utc', now())
                     """,
                     (
                         normalized.id,
+                        normalized.owner_user_id,
                         normalized.name,
                         normalized.company_name,
                         normalized.company_description,
                         normalized.service_area,
                         json.dumps(normalized.company_services, ensure_ascii=False),
+                        normalized.website_url,
                         normalized.agent_name,
                         normalized.phone_number_id,
+                        normalized.whatsapp_display_phone_number,
+                        normalized.meta_business_id,
+                        normalized.meta_business_name,
+                        normalized.meta_waba_id,
+                        normalized.meta_waba_name,
                         normalized.default_template_name,
+                        normalized.default_template_variable_count,
                         normalized.template_language,
                         normalized.booking_url,
                         normalized.lead_manager_page_id,
+                        normalized.lead_manager_page_name,
                         json.dumps(normalized.qualification_statuses, ensure_ascii=False),
                         json.dumps(
                             [field.model_dump(mode="json") for field in normalized.fields],
@@ -244,44 +295,6 @@ class BotConfigStore:
     def close(self) -> None:
         if self._pool is not None:
             self._pool.close()
-
-    def _ensure_runtime_columns(self) -> None:
-        if self._pool is None:
-            return
-
-        with self._pool.connection() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    f"""
-                    ALTER TABLE IF EXISTS {self._table}
-                        ADD COLUMN IF NOT EXISTS company_description text NOT NULL DEFAULT '',
-                        ADD COLUMN IF NOT EXISTS service_area text NOT NULL DEFAULT '',
-                        ADD COLUMN IF NOT EXISTS company_services_json jsonb NOT NULL DEFAULT '[]'::jsonb,
-                        ADD COLUMN IF NOT EXISTS lead_manager_page_id text NOT NULL DEFAULT ''
-                    """
-                )
-                cursor.execute(
-                    f"""
-                    ALTER TABLE IF EXISTS {self._table}
-                        ALTER COLUMN company_description SET DEFAULT '',
-                        ALTER COLUMN service_area SET DEFAULT '',
-                        ALTER COLUMN company_services_json SET DEFAULT '[]'::jsonb,
-                        ALTER COLUMN lead_manager_page_id SET DEFAULT ''
-                    """
-                )
-                cursor.execute(
-                    f"""
-                    ALTER TABLE IF EXISTS {self._table}
-                        DROP CONSTRAINT IF EXISTS bot_configs_company_services_json_array
-                    """,
-                )
-                cursor.execute(
-                    f"""
-                    ALTER TABLE IF EXISTS {self._table}
-                        ADD CONSTRAINT bot_configs_company_services_json_array
-                        CHECK (jsonb_typeof(company_services_json) = 'array')
-                    """
-                )
 
     def _bootstrap_from_files_if_needed(self) -> None:
         if self._pool is None:
@@ -334,17 +347,26 @@ class BotConfigStore:
         return BotConfig.model_validate(
             {
                 "id": row["bot_id"],
+                "owner_user_id": row.get("owner_user_id", ""),
                 "name": row["name"],
                 "company_name": row["company_name"],
                 "company_description": row["company_description"],
                 "service_area": row["service_area"],
                 "company_services": json.loads(row["company_services_json"]),
+                "website_url": row.get("website_url", ""),
                 "agent_name": row["agent_name"],
                 "phone_number_id": row["phone_number_id"],
+                "whatsapp_display_phone_number": row.get("whatsapp_display_phone_number", ""),
+                "meta_business_id": row.get("meta_business_id", ""),
+                "meta_business_name": row.get("meta_business_name", ""),
+                "meta_waba_id": row.get("meta_waba_id", ""),
+                "meta_waba_name": row.get("meta_waba_name", ""),
                 "default_template_name": row["default_template_name"],
+                "default_template_variable_count": row.get("default_template_variable_count", 0),
                 "template_language": row["template_language"],
                 "booking_url": row["booking_url"],
                 "lead_manager_page_id": row["lead_manager_page_id"],
+                "lead_manager_page_name": row.get("lead_manager_page_name", ""),
                 "qualification_statuses": json.loads(row["qualification_statuses_json"]),
                 "fields": json.loads(row["fields_json"]),
             }

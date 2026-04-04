@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import time
 from typing import Any
 
 import httpx
@@ -7,11 +9,14 @@ import httpx
 from lead_qualifier.core.settings import Settings
 from lead_qualifier.domain.bot_config import BotConfig
 from lead_qualifier.domain.lead import LeadState
+from lead_qualifier.services.bridge_security import build_bridge_signature
+from lead_qualifier.services.meta_integration import MetaIntegrationService
 
 
 class LeadManagerClient:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, meta_integration: MetaIntegrationService) -> None:
         self._settings = settings
+        self._meta_integration = meta_integration
 
     def is_enabled_for(self, config: BotConfig) -> bool:
         return bool(
@@ -42,13 +47,26 @@ class LeadManagerClient:
             "custom_fields": _build_custom_fields(config, wa_id, lead_state, manager_note),
         }
 
+        serialized_payload = json.dumps(payload, ensure_ascii=False)
         headers = {"Content-Type": "application/json"}
         if self._settings.lead_manager_api_key:
             headers["X-API-Key"] = self._settings.lead_manager_api_key
+        if config.lead_manager_page_id:
+            bridge = self._meta_integration.get_runtime_page_bridge(config.lead_manager_page_id)
+            secret_id = str(bridge.get("qualifier_bridge_secret_id") or "").strip()
+            if secret_id:
+                secret = self._meta_integration.read_bridge_secret(secret_id)
+                timestamp = str(int(time.time()))
+                headers["X-Gelo-Bridge-Timestamp"] = timestamp
+                headers["X-Gelo-Bridge-Signature"] = build_bridge_signature(
+                    secret,
+                    timestamp,
+                    serialized_payload,
+                )
 
         response = httpx.post(
             self._settings.lead_manager_api_url,
-            json=payload,
+            content=serialized_payload.encode("utf-8"),
             headers=headers,
             timeout=30.0,
         )

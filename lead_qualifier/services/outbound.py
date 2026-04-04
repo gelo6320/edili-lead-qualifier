@@ -5,6 +5,7 @@ from typing import Any
 from lead_qualifier.domain.lead import StoredMessage
 from lead_qualifier.integrations.whatsapp.client import WhatsAppCloudClient
 from lead_qualifier.services.lead_state import build_empty_lead_state, with_initial_template
+from lead_qualifier.services.runtime_credentials import RuntimeCredentialsService
 from lead_qualifier.storage.bot_config_store import BotConfigStore
 from lead_qualifier.storage.protocol import LeadStore
 
@@ -15,10 +16,12 @@ class OutboundMessageService:
         store: LeadStore,
         config_store: BotConfigStore,
         whatsapp_client: WhatsAppCloudClient,
+        runtime_credentials: RuntimeCredentialsService,
     ) -> None:
         self._store = store
         self._config_store = config_store
         self._whatsapp_client = whatsapp_client
+        self._runtime_credentials = runtime_credentials
 
     def send_template(
         self,
@@ -30,6 +33,7 @@ class OutboundMessageService:
         body_parameters: list[str],
     ) -> dict[str, Any]:
         config = self._config_store.require(bot_id)
+        access_token = self._runtime_credentials.get_whatsapp_access_token(config)
         resolved_language = language_code or config.template_language
         response = self._whatsapp_client.send_template_message(
             to=to,
@@ -37,6 +41,7 @@ class OutboundMessageService:
             template_name=template_name,
             language_code=resolved_language,
             body_parameters=body_parameters,
+            access_token=access_token,
         )
 
         self._bootstrap_conversation(
@@ -86,6 +91,28 @@ class OutboundMessageService:
             body_parameters=body_parameters,
         )
 
+    def start_qualification_from_bridge(
+        self,
+        *,
+        bot_id: str,
+        phone: str,
+        full_name: str = "",
+    ) -> dict[str, Any]:
+        config = self._config_store.require(bot_id)
+        resolved_template_name = config.default_template_name
+        if not resolved_template_name:
+            raise RuntimeError("default_template_name non configurato per il bot.")
+        return self.send_template(
+            bot_id=bot_id,
+            to=phone,
+            template_name=resolved_template_name,
+            language_code=config.template_language,
+            body_parameters=_build_default_template_parameters(
+                config,
+                full_name=full_name,
+            ),
+        )
+
     def _bootstrap_conversation(
         self,
         *,
@@ -104,3 +131,26 @@ class OutboundMessageService:
             body_parameters=body_parameters,
         )
         self._store.save_lead_state(bot_id, wa_id, lead_state)
+
+
+def _build_default_template_parameters(config, *, full_name: str) -> list[str]:
+    variable_count = max(int(getattr(config, "default_template_variable_count", 0) or 0), 0)
+    if variable_count <= 0:
+        return []
+
+    seed_values = [
+        str(full_name or "").strip(),
+        str(config.company_name or "").strip(),
+        str(config.service_area or "").strip(),
+        str(config.booking_url or "").strip(),
+    ]
+    parameters: list[str] = []
+    for value in seed_values:
+        if len(parameters) >= variable_count:
+            break
+        if value:
+            parameters.append(value)
+
+    while len(parameters) < variable_count:
+        parameters.append(config.company_name or "-")
+    return parameters

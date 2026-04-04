@@ -33,6 +33,7 @@ class AnthropicLeadQualifier:
         lead_state: LeadState,
         wa_id: str,
         contact_name: str,
+        knowledge_context: str = "",
     ) -> tuple[LeadQualificationResponse, LeadRuntimeMetadata, dict[str, int]]:
         tool_context = LeadQualifierToolContext(
             config=config,
@@ -56,6 +57,7 @@ class AnthropicLeadQualifier:
                 config,
                 tool_context.lead_state,
                 tool_rules=self._toolbox.tool_rules(tool_context),
+                knowledge_context=knowledge_context,
             )
             response = self._require_client().messages.create(
                 model=self._settings.anthropic_model,

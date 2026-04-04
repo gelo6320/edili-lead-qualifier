@@ -1,15 +1,31 @@
-import { Save, Trash2 } from 'lucide-react'
+import {
+  Globe,
+  Link2,
+  RefreshCw,
+  Save,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react'
 
 import { FieldListEditor } from '@/features/bots/components/field-list-editor'
 import {
   commaSeparatedToList,
   listToCommaSeparated,
 } from '@/shared/lib/bot-config'
-import type { BotConfig } from '@/shared/lib/types'
+import type {
+  BotConfig,
+  LeadManagerPageOption,
+  MetaAssetsPayload,
+  MetaWabaOption,
+} from '@/shared/lib/types'
+import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
 import { Textarea } from '@/shared/ui/textarea'
+
+const SELECT_CLASS_NAME =
+  'h-11 w-full cursor-pointer rounded-xl border border-border/60 bg-background px-3 text-sm transition-colors hover:border-border focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60'
 
 type BotEditorProps = {
   bot: BotConfig
@@ -18,24 +34,160 @@ type BotEditorProps = {
   isDeleting: boolean
   editorNotice: string
   editorError: string
+  metaOauthEnabled: boolean
+  cloudflareCrawlEnabled: boolean
+  metaAssets: MetaAssetsPayload
+  metaAssetsError: string
+  isLoadingMetaAssets: boolean
+  isConnectingMeta: boolean
+  isCrawlingSite: boolean
+  crawlNotice: string
+  crawlError: string
   onChange: (bot: BotConfig) => void
   onSave: () => void
   onDelete: () => void
+  onConnectMeta: () => void
+  onReloadMetaAssets: () => void
+  onCrawlSite: (siteUrl: string) => void
+}
+
+function formatDateTime(value: string): string {
+  if (!value) {
+    return 'Scadenza non disponibile'
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.valueOf())) {
+    return value
+  }
+
+  return new Intl.DateTimeFormat('it-IT', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
+}
+
+function getSelectedWaba(
+  bot: BotConfig,
+  metaAssets: MetaAssetsPayload,
+): MetaWabaOption | null {
+  return metaAssets.waba_options.find((item) => item.id === bot.meta_waba_id) ?? null
+}
+
+function getSelectedPage(
+  bot: BotConfig,
+  metaAssets: MetaAssetsPayload,
+): LeadManagerPageOption | null {
+  return metaAssets.page_options.find((item) => item.id === bot.lead_manager_page_id) ?? null
+}
+
+function isPageReservedForAnotherBot(page: LeadManagerPageOption, botId: string): boolean {
+  return Boolean(page.qualifier_bot_id && page.qualifier_bot_id !== botId)
 }
 
 export function BotEditor({
   bot,
+  cloudflareCrawlEnabled,
+  crawlError,
+  crawlNotice,
   editorError,
   editorNotice,
+  isConnectingMeta,
+  isCrawlingSite,
   isDeleting,
+  isLoadingMetaAssets,
   isNew,
   isSaving,
+  metaAssets,
+  metaAssetsError,
+  metaOauthEnabled,
   onChange,
+  onConnectMeta,
+  onCrawlSite,
   onDelete,
+  onReloadMetaAssets,
   onSave,
 }: BotEditorProps) {
+  const selectedWaba = getSelectedWaba(bot, metaAssets)
+  const selectedPage = getSelectedPage(bot, metaAssets)
+  const phoneOptions = selectedWaba?.phone_numbers ?? []
+  const templateOptions = selectedWaba?.templates ?? []
+  const hasMetaSelectors = metaAssets.connected && metaAssets.waba_options.length > 0
+  const hasPageOptions = metaAssets.page_options.length > 0
+
   function patch<K extends keyof BotConfig>(key: K, value: BotConfig[K]) {
     onChange({ ...bot, [key]: value })
+  }
+
+  function patchMany(nextPatch: Partial<BotConfig>) {
+    onChange({ ...bot, ...nextPatch })
+  }
+
+  function handleWabaChange(wabaId: string) {
+    if (!wabaId) {
+      patchMany({
+        meta_business_id: '',
+        meta_business_name: '',
+        meta_waba_id: '',
+        meta_waba_name: '',
+        phone_number_id: '',
+        whatsapp_display_phone_number: '',
+        default_template_name: '',
+        default_template_variable_count: 0,
+        template_language: 'it',
+      })
+      return
+    }
+
+    const nextWaba = metaAssets.waba_options.find((item) => item.id === wabaId)
+    if (!nextWaba) {
+      return
+    }
+
+    const nextPhone =
+      nextWaba.phone_numbers.find((item) => item.id === bot.phone_number_id) ?? null
+    const nextTemplate =
+      nextWaba.templates.find((item) => item.name === bot.default_template_name) ?? null
+
+    patchMany({
+      meta_business_id: nextWaba.business_id,
+      meta_business_name: nextWaba.business_name,
+      meta_waba_id: nextWaba.id,
+      meta_waba_name: nextWaba.name,
+      phone_number_id: nextPhone?.id ?? '',
+      whatsapp_display_phone_number: nextPhone?.display_phone_number ?? '',
+      default_template_name: nextTemplate?.name ?? '',
+      default_template_variable_count: nextTemplate?.body_variable_count ?? 0,
+      template_language: nextTemplate?.language ?? 'it',
+    })
+  }
+
+  function handlePhoneNumberChange(phoneNumberId: string) {
+    const nextPhone =
+      phoneOptions.find((item) => item.id === phoneNumberId) ?? null
+    patchMany({
+      phone_number_id: nextPhone?.id ?? '',
+      whatsapp_display_phone_number: nextPhone?.display_phone_number ?? '',
+    })
+  }
+
+  function handleTemplateChange(templateName: string) {
+    const nextTemplate =
+      templateOptions.find((item) => item.name === templateName) ?? null
+    patchMany({
+      default_template_name: nextTemplate?.name ?? '',
+      default_template_variable_count: nextTemplate?.body_variable_count ?? 0,
+      template_language: nextTemplate?.language ?? 'it',
+    })
+  }
+
+  function handleLeadManagerPageChange(pageId: string) {
+    const nextPage =
+      metaAssets.page_options.find((item) => item.id === pageId) ?? null
+    patchMany({
+      lead_manager_page_id: nextPage?.id ?? '',
+      lead_manager_page_name: nextPage?.name ?? '',
+    })
   }
 
   return (
@@ -65,6 +217,7 @@ export function BotEditor({
               className="gap-1.5 rounded-xl"
               onClick={onDelete}
               disabled={isDeleting}
+              type="button"
             >
               <Trash2 className="h-3.5 w-3.5" />
               {isDeleting ? 'Eliminazione...' : 'Elimina'}
@@ -75,12 +228,253 @@ export function BotEditor({
             onClick={onSave}
             disabled={isSaving}
             className="gap-1.5 rounded-xl shadow-sm shadow-primary/20"
+            type="button"
           >
             <Save className="h-3.5 w-3.5" />
             {isSaving ? 'Salvataggio...' : 'Salva'}
           </Button>
         </div>
       </div>
+
+      <section className="grid gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div className="grid gap-1">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold">Connessione Meta e routing lead</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Collega Facebook una sola volta, poi scegli numero WhatsApp, template e pagina `lead-manager` dai dati reali disponibili.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={metaAssets.connected ? 'default' : 'outline'}>
+              {metaAssets.connected ? 'Facebook collegato' : 'Facebook non collegato'}
+            </Badge>
+            {metaAssets.connected ? (
+              <Badge variant="secondary">
+                {metaAssets.waba_options.length} WABA
+              </Badge>
+            ) : null}
+            {metaAssets.page_options.length > 0 ? (
+              <Badge variant="secondary">
+                {metaAssets.page_options.length} pagine lead-manager
+              </Badge>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {metaOauthEnabled ? (
+            <Button
+              type="button"
+              variant={metaAssets.connected ? 'outline' : 'default'}
+              className="gap-2 rounded-xl"
+              onClick={onConnectMeta}
+              disabled={isConnectingMeta}
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              {isConnectingMeta
+                ? 'Reindirizzamento...'
+                : metaAssets.connected
+                  ? 'Ricollega Facebook'
+                  : 'Collega Facebook'}
+            </Button>
+          ) : null}
+
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2 rounded-xl"
+            onClick={onReloadMetaAssets}
+            disabled={isLoadingMetaAssets}
+          >
+            <RefreshCw className={isLoadingMetaAssets ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />
+            {isLoadingMetaAssets ? 'Aggiornamento...' : 'Ricarica asset'}
+          </Button>
+        </div>
+
+        {!metaOauthEnabled ? (
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-700">
+            Per usare l'OAuth Meta devi configurare `META_APP_ID`, `META_APP_SECRET`, `APP_BASE_URL` e `OAUTH_STATE_SECRET` sul backend.
+            </div>
+        ) : null}
+
+        {metaAssets.profile ? (
+          <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">{metaAssets.profile.name}</span>
+            {' '}connesso su Meta. Token valido fino a {formatDateTime(metaAssets.profile.token_expires_at)}.
+          </div>
+        ) : null}
+
+        {metaAssetsError ? (
+          <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            {metaAssetsError}
+          </div>
+        ) : null}
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {hasMetaSelectors ? (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="meta-waba" className="text-sm font-semibold">Account WhatsApp Business</Label>
+                <select
+                  id="meta-waba"
+                  className={SELECT_CLASS_NAME}
+                  value={bot.meta_waba_id}
+                  onChange={(event) => handleWabaChange(event.target.value)}
+                >
+                  <option value="">Seleziona WABA</option>
+                  {metaAssets.waba_options.map((waba) => (
+                    <option key={waba.id} value={waba.id}>
+                      {waba.name} - {waba.business_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="meta-phone-number" className="text-sm font-semibold">Numero invio WhatsApp</Label>
+                <select
+                  id="meta-phone-number"
+                  className={SELECT_CLASS_NAME}
+                  value={bot.phone_number_id}
+                  onChange={(event) => handlePhoneNumberChange(event.target.value)}
+                  disabled={!selectedWaba}
+                >
+                  <option value="">
+                    {selectedWaba ? 'Seleziona numero' : 'Seleziona prima un WABA'}
+                  </option>
+                  {phoneOptions.map((phone) => (
+                    <option key={phone.id} value={phone.id}>
+                      {phone.display_phone_number || phone.id}
+                      {phone.verified_name ? ` - ${phone.verified_name}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="meta-template" className="text-sm font-semibold">Template iniziale</Label>
+                <select
+                  id="meta-template"
+                  className={SELECT_CLASS_NAME}
+                  value={bot.default_template_name}
+                  onChange={(event) => handleTemplateChange(event.target.value)}
+                  disabled={!selectedWaba}
+                >
+                  <option value="">
+                    {selectedWaba ? 'Seleziona template' : 'Seleziona prima un WABA'}
+                  </option>
+                  {templateOptions.map((template) => (
+                    <option key={`${template.name}-${template.language}`} value={template.name}>
+                      {template.name} - {template.language}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="phone-number-id" className="text-sm font-semibold">Meta phone_number_id</Label>
+                <Input
+                  id="phone-number-id"
+                  className="h-11 rounded-xl font-mono text-xs"
+                  value={bot.phone_number_id}
+                  onChange={(event) => patch('phone_number_id', event.target.value)}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="default-template-name" className="text-sm font-semibold">Template di default</Label>
+                <Input
+                  id="default-template-name"
+                  className="h-11 rounded-xl"
+                  value={bot.default_template_name}
+                  onChange={(event) => patch('default_template_name', event.target.value)}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="template-language" className="text-sm font-semibold">Lingua template</Label>
+                <Input
+                  id="template-language"
+                  className="h-11 rounded-xl"
+                  value={bot.template_language}
+                  onChange={(event) => patch('template_language', event.target.value)}
+                />
+              </div>
+            </>
+          )}
+
+          <div className="grid gap-2">
+            <Label htmlFor="lead-manager-page" className="text-sm font-semibold">Pagina lead-manager</Label>
+            {hasPageOptions ? (
+              <select
+                id="lead-manager-page"
+                className={SELECT_CLASS_NAME}
+                value={bot.lead_manager_page_id}
+                onChange={(event) => handleLeadManagerPageChange(event.target.value)}
+              >
+                <option value="">Nessuna pagina collegata</option>
+                {metaAssets.page_options.map((page) => {
+                  const disabled = isPageReservedForAnotherBot(page, bot.id)
+                  return (
+                    <option key={page.id} value={page.id} disabled={disabled}>
+                      {page.name}
+                      {page.is_active === 'true' ? '' : ' - inattiva'}
+                      {disabled ? ` - assegnata a ${page.qualifier_bot_name || page.qualifier_bot_id}` : ''}
+                    </option>
+                  )
+                })}
+              </select>
+            ) : (
+              <Input
+                id="lead-manager-page"
+                className="h-11 rounded-xl font-mono text-xs"
+                value={bot.lead_manager_page_id}
+                onChange={(event) => patch('lead_manager_page_id', event.target.value)}
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="grid gap-3 rounded-xl border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground xl:grid-cols-2">
+          <div className="grid gap-1">
+            <span className="font-semibold text-foreground">Riepilogo collegamento</span>
+            <span>
+              Business: {bot.meta_business_name || 'non selezionato'}
+            </span>
+            <span>
+              WABA: {bot.meta_waba_name || 'non selezionato'}
+            </span>
+            <span>
+              Numero: {bot.whatsapp_display_phone_number || bot.phone_number_id || 'non selezionato'}
+            </span>
+            <span>
+              Template: {bot.default_template_name || 'non selezionato'}
+              {bot.template_language ? ` - ${bot.template_language}` : ''}
+            </span>
+          </div>
+
+          <div className="grid gap-1">
+            <span className="font-semibold text-foreground">Bridge con lead-manager</span>
+            <span>
+              Pagina: {selectedPage?.name || bot.lead_manager_page_name || bot.lead_manager_page_id || 'non collegata'}
+            </span>
+            <span>
+              Variabili body template: {bot.default_template_variable_count}
+            </span>
+            {selectedPage?.qualifier_bot_id && selectedPage.qualifier_bot_id !== bot.id ? (
+              <span className="text-destructive">
+                La pagina selezionata e gia riservata al bot {selectedPage.qualifier_bot_name || selectedPage.qualifier_bot_id}.
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </section>
 
       <section className="grid gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-3">
         <div className="grid gap-2">
@@ -134,15 +528,23 @@ export function BotEditor({
           />
         </div>
 
+        <div className="grid gap-2">
+          <Label htmlFor="booking-url" className="text-sm font-semibold">Booking URL</Label>
+          <Input
+            id="booking-url"
+            className="h-11 rounded-xl"
+            value={bot.booking_url}
+            onChange={(event) => patch('booking_url', event.target.value)}
+          />
+        </div>
+
         <div className="grid gap-2 sm:col-span-2 xl:col-span-3">
           <Label htmlFor="company-description" className="text-sm font-semibold">Descrizione azienda</Label>
           <Textarea
             id="company-description"
             className="min-h-28 rounded-xl"
             value={bot.company_description}
-            onChange={(event) =>
-              patch('company_description', event.target.value)
-            }
+            onChange={(event) => patch('company_description', event.target.value)}
           />
         </div>
 
@@ -159,62 +561,58 @@ export function BotEditor({
           />
         </div>
 
-        <div className="grid gap-2">
-          <Label htmlFor="phone-number-id" className="text-sm font-semibold">Meta phone_number_id</Label>
-          <Input
-            id="phone-number-id"
-            className="h-11 rounded-xl font-mono text-xs"
-            value={bot.phone_number_id}
-            onChange={(event) =>
-              patch('phone_number_id', event.target.value)
-            }
-          />
+        <div className="grid gap-2 sm:col-span-2 xl:col-span-3">
+          <Label htmlFor="website-url" className="text-sm font-semibold">Sito aziendale</Label>
+          <div className="flex flex-col gap-3 lg:flex-row">
+            <Input
+              id="website-url"
+              className="h-11 rounded-xl"
+              placeholder="https://www.example.com"
+              value={bot.website_url}
+              onChange={(event) => patch('website_url', event.target.value)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2 rounded-xl lg:min-w-[12rem]"
+              onClick={() => onCrawlSite(bot.website_url)}
+              disabled={
+                !cloudflareCrawlEnabled ||
+                isNew ||
+                isCrawlingSite ||
+                !bot.website_url.trim()
+              }
+            >
+              <Globe className={isCrawlingSite ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />
+              {isCrawlingSite ? 'Analisi in corso...' : 'Crawl + knowledge'}
+            </Button>
+          </div>
         </div>
 
-        <div className="grid gap-2">
-          <Label htmlFor="booking-url" className="text-sm font-semibold">Booking URL</Label>
-          <Input
-            id="booking-url"
-            className="h-11 rounded-xl"
-            value={bot.booking_url}
-            onChange={(event) => patch('booking_url', event.target.value)}
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="lead-manager-page-id" className="text-sm font-semibold">Lead manager page_id</Label>
-          <Input
-            id="lead-manager-page-id"
-            className="h-11 rounded-xl font-mono text-xs"
-            value={bot.lead_manager_page_id}
-            onChange={(event) =>
-              patch('lead_manager_page_id', event.target.value)
-            }
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="default-template-name" className="text-sm font-semibold">Template di default</Label>
-          <Input
-            id="default-template-name"
-            className="h-11 rounded-xl"
-            value={bot.default_template_name}
-            onChange={(event) =>
-              patch('default_template_name', event.target.value)
-            }
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="template-language" className="text-sm font-semibold">Lingua template</Label>
-          <Input
-            id="template-language"
-            className="h-11 rounded-xl"
-            value={bot.template_language}
-            onChange={(event) =>
-              patch('template_language', event.target.value)
-            }
-          />
+        <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground sm:col-span-2 xl:col-span-3">
+          <div className="flex items-center gap-2 font-semibold text-foreground">
+            <Globe className="h-4 w-4 text-primary" />
+            Personalizzazione sito + RAG
+          </div>
+          <p className="mt-2">
+            L'analisi usa Cloudflare `/crawl` per estrarre contenuti dal sito, aggiorna automaticamente descrizione, area e servizi, e salva chunk consultabili dall'agente come knowledge base.
+          </p>
+          {!cloudflareCrawlEnabled ? (
+            <p className="mt-2 text-amber-700">
+              Configura `CLOUDFLARE_ACCOUNT_ID` e `CLOUDFLARE_API_TOKEN` per abilitare il crawl.
+            </p>
+          ) : null}
+          {isNew ? (
+            <p className="mt-2">
+              Salva prima il bot per avviare il crawl e popolare la knowledge base associata.
+            </p>
+          ) : null}
+          {crawlNotice ? (
+            <p className="mt-2 text-primary">{crawlNotice}</p>
+          ) : null}
+          {crawlError ? (
+            <p className="mt-2 text-destructive">{crawlError}</p>
+          ) : null}
         </div>
 
         <div className="grid gap-2">
@@ -233,8 +631,19 @@ export function BotEditor({
           />
         </div>
 
-        <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground sm:col-span-2 xl:col-span-3">
-          Il prompt operativo e fisso a livello di codice. Qui puoi cambiare solo dati azienda, requisiti e routing verso il lead manager.
+        <div className="grid gap-2">
+          <Label htmlFor="template-language-readonly" className="text-sm font-semibold">Lingua template attiva</Label>
+          <Input
+            id="template-language-readonly"
+            className="h-11 rounded-xl"
+            value={bot.template_language}
+            onChange={(event) => patch('template_language', event.target.value)}
+            readOnly={hasMetaSelectors}
+          />
+        </div>
+
+        <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+          Il prompt operativo rimane a livello di codice. Qui governi identita aziendale, knowledge base e il bridge sicuro con `lead-manager`.
         </div>
       </section>
 

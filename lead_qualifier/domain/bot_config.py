@@ -45,6 +45,7 @@ class BotConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: str = Field(..., description="Identificatore univoco del bot.")
+    owner_user_id: str = Field(default="", description="Utente proprietario della configurazione.")
     name: str = Field(..., description="Nome leggibile del bot.")
     company_name: str = Field(..., description="Nome azienda/brand del tenant.")
     company_description: str = Field(
@@ -59,14 +60,32 @@ class BotConfig(BaseModel):
         default_factory=list,
         description="Servizi principali offerti dall'azienda.",
     )
+    website_url: str = Field(default="", description="Sito web usato per personalizzazione e knowledge base.")
     agent_name: str = Field(default="Giulia", description="Nome dell'agente.")
     phone_number_id: str = Field(default="", description="Phone Number ID Meta associato al bot.")
+    whatsapp_display_phone_number: str = Field(
+        default="",
+        description="Numero WhatsApp leggibile associato al phone number id.",
+    )
+    meta_business_id: str = Field(default="", description="Business ID Meta selezionato.")
+    meta_business_name: str = Field(default="", description="Nome del business Meta selezionato.")
+    meta_waba_id: str = Field(default="", description="WhatsApp Business Account ID selezionato.")
+    meta_waba_name: str = Field(default="", description="Nome del WABA selezionato.")
     default_template_name: str = Field(default="", description="Template outbound predefinito.")
+    default_template_variable_count: int = Field(
+        default=0,
+        description="Numero di variabili body richieste dal template di default.",
+        ge=0,
+    )
     template_language: str = Field(default="it", description="Lingua template Meta.")
     booking_url: str = Field(default="", description="URL opzionale per prenotare una chiamata.")
     lead_manager_page_id: str = Field(
         default="",
         description="Page ID usato dal lead manager per instradare il lead qualificato.",
+    )
+    lead_manager_page_name: str = Field(
+        default="",
+        description="Nome leggibile della pagina collegata su lead manager.",
     )
     qualification_statuses: list[str] = Field(
         default_factory=lambda: DEFAULT_QUALIFICATION_STATUSES.copy(),
@@ -79,16 +98,24 @@ class BotConfig(BaseModel):
 
     @field_validator(
         "id",
+        "owner_user_id",
         "name",
         "company_name",
         "company_description",
         "service_area",
         "agent_name",
+        "website_url",
         "phone_number_id",
+        "whatsapp_display_phone_number",
+        "meta_business_id",
+        "meta_business_name",
+        "meta_waba_id",
+        "meta_waba_name",
         "default_template_name",
         "template_language",
         "booking_url",
         "lead_manager_page_id",
+        "lead_manager_page_name",
         mode="before",
     )
     @classmethod

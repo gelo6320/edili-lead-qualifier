@@ -12,6 +12,10 @@ class WhatsAppCloudClient:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
+    @staticmethod
+    def _normalize_recipient(to: str) -> str:
+        return "".join(ch for ch in str(to or "").strip() if ch.isdigit())
+
     def _build_endpoint(self, phone_number_id: str) -> str:
         return (
             f"{self._settings.whatsapp_api_base_url}/"
@@ -19,16 +23,23 @@ class WhatsAppCloudClient:
             f"{phone_number_id}/messages"
         )
 
-    def _headers(self) -> dict[str, str]:
+    def _headers(self, access_token: str | None = None) -> dict[str, str]:
+        resolved_token = (access_token or self._settings.whatsapp_access_token).strip()
         return {
-            "Authorization": f"Bearer {self._settings.whatsapp_access_token}",
+            "Authorization": f"Bearer {resolved_token}",
             "Content-Type": "application/json",
         }
 
-    def _post_message(self, phone_number_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def _post_message(
+        self,
+        phone_number_id: str,
+        payload: dict[str, Any],
+        *,
+        access_token: str | None = None,
+    ) -> dict[str, Any]:
         response = httpx.post(
             self._build_endpoint(phone_number_id),
-            headers=self._headers(),
+            headers=self._headers(access_token),
             json=payload,
             timeout=30.0,
         )
@@ -42,16 +53,21 @@ class WhatsAppCloudClient:
         body: str,
         phone_number_id: str,
         reply_to_message_id: str | None = None,
+        access_token: str | None = None,
     ) -> dict[str, Any]:
-        if not self._settings.whatsapp_access_token:
-            raise RuntimeError("WHATSAPP_ACCESS_TOKEN non configurato.")
+        if not (access_token or self._settings.whatsapp_access_token):
+            raise RuntimeError("Token WhatsApp non configurato.")
         if not phone_number_id:
             raise RuntimeError("phone_number_id non configurato per il bot.")
+
+        normalized_to = self._normalize_recipient(to)
+        if not normalized_to:
+            raise RuntimeError("Numero destinatario non valido.")
 
         payload: dict[str, Any] = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
-            "to": to,
+            "to": normalized_to,
             "type": "text",
             "text": {
                 "body": body,
@@ -61,7 +77,7 @@ class WhatsAppCloudClient:
         if reply_to_message_id:
             payload["context"] = {"message_id": reply_to_message_id}
 
-        return self._post_message(phone_number_id, payload)
+        return self._post_message(phone_number_id, payload, access_token=access_token)
 
     def send_template_message(
         self,
@@ -71,11 +87,16 @@ class WhatsAppCloudClient:
         template_name: str,
         language_code: str,
         body_parameters: Sequence[str] | None = None,
+        access_token: str | None = None,
     ) -> dict[str, Any]:
-        if not self._settings.whatsapp_access_token:
-            raise RuntimeError("WHATSAPP_ACCESS_TOKEN non configurato.")
+        if not (access_token or self._settings.whatsapp_access_token):
+            raise RuntimeError("Token WhatsApp non configurato.")
         if not phone_number_id:
             raise RuntimeError("phone_number_id non configurato per il bot.")
+
+        normalized_to = self._normalize_recipient(to)
+        if not normalized_to:
+            raise RuntimeError("Numero destinatario non valido.")
 
         normalized_parameters = [str(value).strip() for value in (body_parameters or []) if str(value).strip()]
         template: dict[str, Any] = {
@@ -96,8 +117,8 @@ class WhatsAppCloudClient:
         payload: dict[str, Any] = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
-            "to": to,
+            "to": normalized_to,
             "type": "template",
             "template": template,
         }
-        return self._post_message(phone_number_id, payload)
+        return self._post_message(phone_number_id, payload, access_token=access_token)
