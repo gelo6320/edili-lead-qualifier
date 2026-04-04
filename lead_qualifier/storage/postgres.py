@@ -20,6 +20,7 @@ class PostgresLeadStore:
         timeout_seconds: float,
     ) -> None:
         self._schema = schema
+        self._lead_states_table_name = "lead_states"
         self._messages_table = f"{schema}.conversation_messages"
         self._lead_states_table = f"{schema}.lead_states"
         self._inbound_messages_table = f"{schema}.inbound_messages"
@@ -35,6 +36,7 @@ class PostgresLeadStore:
             },
         )
         self._pool.wait()
+        self._ensure_runtime_columns()
 
     def list_leads(self, bot_id: str) -> list[LeadConversationSummary]:
         with self._pool.connection() as connection:
@@ -209,3 +211,32 @@ class PostgresLeadStore:
 
     def close(self) -> None:
         self._pool.close()
+
+    def _ensure_runtime_columns(self) -> None:
+        with self._pool.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    ALTER TABLE IF EXISTS {self._lead_states_table}
+                        ADD COLUMN IF NOT EXISTS metadata_json jsonb NOT NULL DEFAULT '{{}}'::jsonb
+                    """
+                )
+                cursor.execute(
+                    f"""
+                    ALTER TABLE IF EXISTS {self._lead_states_table}
+                        ALTER COLUMN metadata_json SET DEFAULT '{{}}'::jsonb
+                    """
+                )
+                cursor.execute(
+                    f"""
+                    ALTER TABLE IF EXISTS {self._lead_states_table}
+                        DROP CONSTRAINT IF EXISTS lead_states_metadata_json_object
+                    """
+                )
+                cursor.execute(
+                    f"""
+                    ALTER TABLE IF EXISTS {self._lead_states_table}
+                        ADD CONSTRAINT lead_states_metadata_json_object
+                        CHECK (jsonb_typeof(metadata_json) = 'object')
+                    """
+                )

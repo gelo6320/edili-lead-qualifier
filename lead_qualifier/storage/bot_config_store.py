@@ -22,6 +22,8 @@ class BotConfigStore:
     ) -> None:
         self._config_dir = config_dir
         self._config_dir.mkdir(parents=True, exist_ok=True)
+        self._schema = schema
+        self._table_name = "bot_configs"
         self._table = f"{schema}.bot_configs"
         self._pool: ConnectionPool | None = None
 
@@ -38,6 +40,7 @@ class BotConfigStore:
                 },
             )
             self._pool.wait()
+            self._ensure_runtime_columns()
             self._bootstrap_from_files_if_needed()
 
     def list_configs(self) -> list[BotConfig]:
@@ -241,6 +244,44 @@ class BotConfigStore:
     def close(self) -> None:
         if self._pool is not None:
             self._pool.close()
+
+    def _ensure_runtime_columns(self) -> None:
+        if self._pool is None:
+            return
+
+        with self._pool.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    ALTER TABLE IF EXISTS {self._table}
+                        ADD COLUMN IF NOT EXISTS company_description text NOT NULL DEFAULT '',
+                        ADD COLUMN IF NOT EXISTS service_area text NOT NULL DEFAULT '',
+                        ADD COLUMN IF NOT EXISTS company_services_json jsonb NOT NULL DEFAULT '[]'::jsonb,
+                        ADD COLUMN IF NOT EXISTS lead_manager_page_id text NOT NULL DEFAULT ''
+                    """
+                )
+                cursor.execute(
+                    f"""
+                    ALTER TABLE IF EXISTS {self._table}
+                        ALTER COLUMN company_description SET DEFAULT '',
+                        ALTER COLUMN service_area SET DEFAULT '',
+                        ALTER COLUMN company_services_json SET DEFAULT '[]'::jsonb,
+                        ALTER COLUMN lead_manager_page_id SET DEFAULT ''
+                    """
+                )
+                cursor.execute(
+                    f"""
+                    ALTER TABLE IF EXISTS {self._table}
+                        DROP CONSTRAINT IF EXISTS bot_configs_company_services_json_array
+                    """,
+                )
+                cursor.execute(
+                    f"""
+                    ALTER TABLE IF EXISTS {self._table}
+                        ADD CONSTRAINT bot_configs_company_services_json_array
+                        CHECK (jsonb_typeof(company_services_json) = 'array')
+                    """
+                )
 
     def _bootstrap_from_files_if_needed(self) -> None:
         if self._pool is None:
