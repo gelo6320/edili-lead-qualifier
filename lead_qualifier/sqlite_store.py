@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Iterator
 
 from lead_qualifier.models import LeadState, StoredMessage
+from lead_qualifier.store_protocol import LeadConversationSummary
 
 
 class SQLiteLeadStore:
@@ -190,6 +191,37 @@ class SQLiteLeadStore:
                     FROM legacy_inbound_messages
                     """
                 )
+
+    def list_leads(self, bot_id: str) -> list[LeadConversationSummary]:
+        with self._connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    cm.wa_id,
+                    COALESCE(ls.qualification_status, 'new') AS qualification_status,
+                    COALESCE(ls.summary, '') AS summary,
+                    COUNT(cm.id) AS message_count,
+                    MAX(cm.created_at) AS last_message_at
+                FROM conversation_messages cm
+                LEFT JOIN lead_states ls
+                    ON cm.bot_id = ls.bot_id AND cm.wa_id = ls.wa_id
+                WHERE cm.bot_id = ?
+                GROUP BY cm.wa_id, ls.qualification_status, ls.summary
+                ORDER BY MAX(cm.created_at) DESC
+                """,
+                (bot_id,),
+            ).fetchall()
+
+        return [
+            LeadConversationSummary(
+                wa_id=row["wa_id"],
+                qualification_status=row["qualification_status"],
+                summary=row["summary"],
+                message_count=int(row["message_count"]),
+                last_message_at=row["last_message_at"],
+            )
+            for row in rows
+        ]
 
     def list_messages(self, bot_id: str, wa_id: str) -> list[StoredMessage]:
         with self._connection() as connection:

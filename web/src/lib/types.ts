@@ -41,3 +41,16 @@ export type TemplateSendRequest = {
   language_code?: string | null
   body_parameters: string[]
 }
+
+export type LeadSummary = {
+  wa_id: string
+  qualification_status: string
+  summary: string
+  message_count: number
+  last_message_at: string
+}
+
+export type ChatMessage = {
+  role: 'user' | 'assistant'
+  display: string
+}

@@ -1,11 +1,26 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Protocol
 
 from lead_qualifier.models import LeadState, StoredMessage
 
 
+@dataclass(frozen=True)
+class LeadConversationSummary:
+    """Lightweight summary returned by list_leads."""
+
+    wa_id: str
+    qualification_status: str
+    summary: str
+    message_count: int
+    last_message_at: str
+
+
 class LeadStore(Protocol):
+    def list_leads(self, bot_id: str) -> list[LeadConversationSummary]:
+        ...
+
     def list_messages(self, bot_id: str, wa_id: str) -> list[StoredMessage]:
         ...
 

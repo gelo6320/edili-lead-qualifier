@@ -2,17 +2,21 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
 
+from dataclasses import asdict
+
 from lead_qualifier.api_models import BotConfigRequest, TemplateSendRequest
 from lead_qualifier.bot_config_store import BotConfigStore
 from lead_qualifier.dashboard_auth import require_dashboard_user
 from lead_qualifier.outbound_service import OutboundMessageService
 from lead_qualifier.settings import Settings
+from lead_qualifier.store_protocol import LeadStore
 
 
 def build_dashboard_api_router(
     settings: Settings,
     config_store: BotConfigStore,
     outbound_service: OutboundMessageService,
+    lead_store: LeadStore | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -82,5 +86,24 @@ def build_dashboard_api_router(
             "status": "sent",
             "response": response,
         }
+
+    @router.get("/bots/{bot_id}/leads")
+    async def list_leads(bot_id: str, request: Request) -> list[dict]:
+        await require_dashboard_user(request, settings)
+        if lead_store is None:
+            raise HTTPException(status_code=501, detail="Lead store non disponibile.")
+        if config_store.get(bot_id) is None:
+            raise HTTPException(status_code=404, detail="Bot non trovato.")
+        return [asdict(lead) for lead in lead_store.list_leads(bot_id)]
+
+    @router.get("/bots/{bot_id}/leads/{wa_id}/messages")
+    async def list_lead_messages(bot_id: str, wa_id: str, request: Request) -> list[dict]:
+        await require_dashboard_user(request, settings)
+        if lead_store is None:
+            raise HTTPException(status_code=501, detail="Lead store non disponibile.")
+        if config_store.get(bot_id) is None:
+            raise HTTPException(status_code=404, detail="Bot non trovato.")
+        messages = lead_store.list_messages(bot_id, wa_id)
+        return [{"role": m.role, "display": m.display} for m in messages]
 
     return router

@@ -4,6 +4,7 @@ import { Bot, LogOut } from 'lucide-react'
 import { AuthView } from '@/components/auth-view'
 import { BotEditor } from '@/components/bot-editor'
 import { BotList } from '@/components/bot-list'
+import { ChatView } from '@/components/chat-view'
 import { SendTemplateCard } from '@/components/send-template-card'
 import { Button } from '@/components/ui/button'
 import {
@@ -461,6 +462,10 @@ function App() {
               onSend={handleSendTemplate}
               pending={isSendingTemplate}
             />
+
+            {draftMode === 'existing' ? (
+              <ChatView bot={draftBot} accessToken={accessToken} />
+            ) : null}
           </div>
         </div>
       </div>

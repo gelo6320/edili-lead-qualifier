@@ -6,6 +6,7 @@ from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
 from lead_qualifier.models import LeadState, StoredMessage
+from lead_qualifier.store_protocol import LeadConversationSummary
 
 
 class PostgresLeadStore:
@@ -34,6 +35,39 @@ class PostgresLeadStore:
             },
         )
         self._pool.wait()
+
+    def list_leads(self, bot_id: str) -> list[LeadConversationSummary]:
+        with self._pool.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    SELECT
+                        cm.wa_id,
+                        COALESCE(ls.qualification_status, 'new') AS qualification_status,
+                        COALESCE(ls.summary, '') AS summary,
+                        COUNT(cm.id) AS message_count,
+                        MAX(cm.created_at)::text AS last_message_at
+                    FROM {self._messages_table} cm
+                    LEFT JOIN {self._lead_states_table} ls
+                        ON cm.bot_id = ls.bot_id AND cm.wa_id = ls.wa_id
+                    WHERE cm.bot_id = %s
+                    GROUP BY cm.wa_id, ls.qualification_status, ls.summary
+                    ORDER BY MAX(cm.created_at) DESC
+                    """,
+                    (bot_id,),
+                )
+                rows = cursor.fetchall()
+
+        return [
+            LeadConversationSummary(
+                wa_id=row["wa_id"],
+                qualification_status=row["qualification_status"],
+                summary=row["summary"],
+                message_count=row["message_count"],
+                last_message_at=row["last_message_at"],
+            )
+            for row in rows
+        ]
 
     def list_messages(self, bot_id: str, wa_id: str) -> list[StoredMessage]:
         with self._pool.connection() as connection:

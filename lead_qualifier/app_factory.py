@@ -55,7 +55,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(build_webhook_router(settings, message_service))
     app.include_router(build_admin_router(settings, outbound_service))
-    app.include_router(build_dashboard_api_router(settings, config_store, outbound_service))
+    app.include_router(build_dashboard_api_router(settings, config_store, outbound_service, lead_store=store))
 
     assets_dir = settings.dashboard_dist_path / "assets"
     if assets_dir.exists():

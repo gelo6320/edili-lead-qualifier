@@ -1,7 +1,9 @@
 import type {
   BotConfig,
+  ChatMessage,
   DashboardAppConfig,
   DashboardSessionPayload,
+  LeadSummary,
   TemplateSendRequest,
 } from '@/lib/types'
 
@@ -106,6 +108,22 @@ export function sendTemplate(token: string, payload: TemplateSendRequest) {
       method: 'POST',
       body: JSON.stringify(payload),
     },
+    token,
+  )
+}
+
+export function listLeads(token: string, botId: string) {
+  return dashboardFetch<LeadSummary[]>(
+    `/api/dashboard/bots/${botId}/leads`,
+    undefined,
+    token,
+  )
+}
+
+export function listLeadMessages(token: string, botId: string, waId: string) {
+  return dashboardFetch<ChatMessage[]>(
+    `/api/dashboard/bots/${botId}/leads/${waId}/messages`,
+    undefined,
     token,
   )
 }
