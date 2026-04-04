@@ -1,5 +1,5 @@
 create extension if not exists pgcrypto;
-create extension if not exists vault with schema vault;
+create extension if not exists supabase_vault with schema vault;
 
 create or replace function public.upsert_vault_secret(
     p_secret text,
@@ -126,10 +126,11 @@ begin
         where table_schema = 'public'
           and table_name = 'meta_page_subscriptions'
     ) then
-        execute '
+        execute $sql$
             create unique index if not exists idx_meta_page_subscriptions_qualifier_bot_id
             on public.meta_page_subscriptions (qualifier_bot_id)
-            where qualifier_bot_id <> ''''''';
+            where qualifier_bot_id <> '';
+        $sql$;
     end if;
 end $$;
 
