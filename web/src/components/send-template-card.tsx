@@ -5,14 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import type { BotConfig, TemplateSendRequest } from '@/lib/types'
+import type { BotConfig, TemplateTestRequest } from '@/lib/types'
 
 type SendTemplateCardProps = {
   bot: BotConfig
   pending: boolean
   notice: string
   error: string
-  onSend: (payload: TemplateSendRequest) => Promise<void>
+  onSend: (payload: TemplateTestRequest) => Promise<void>
 }
 
 export function SendTemplateCard({
@@ -34,7 +34,6 @@ export function SendTemplateCard({
 
   async function submit() {
     await onSend({
-      bot_id: bot.id,
       to: to.trim(),
       template_name: templateName.trim(),
       language_code: languageCode.trim() || null,
@@ -102,6 +101,10 @@ export function SendTemplateCard({
         </div>
       ) : null}
 
+      <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+        L'invio del template crea subito la conversazione e inizializza il contesto agente per quel numero.
+      </div>
+
       {error ? (
         <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {error}
@@ -115,7 +118,7 @@ export function SendTemplateCard({
           disabled={!to.trim() || !templateName.trim() || pending}
         >
           <Send className="h-3.5 w-3.5" />
-          {pending ? 'Invio...' : 'Invia'}
+          {pending ? 'Invio...' : 'Invia test'}
         </Button>
       </div>
     </section>

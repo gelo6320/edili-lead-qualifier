@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
-from lead_qualifier.models import LeadState, StoredMessage
+from lead_qualifier.models import LeadRuntimeMetadata, LeadState, StoredMessage
 from lead_qualifier.store_protocol import LeadConversationSummary
 
 
@@ -51,6 +51,7 @@ class SQLiteLeadStore:
                     qualification_status TEXT NOT NULL,
                     missing_fields_json TEXT NOT NULL,
                     summary TEXT NOT NULL,
+                    metadata_json TEXT NOT NULL DEFAULT '{}',
                     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY (bot_id, wa_id)
                 );
@@ -67,6 +68,12 @@ class SQLiteLeadStore:
                 """
             )
 
+            self._ensure_column(
+                connection,
+                table_name="lead_states",
+                column_name="metadata_json",
+                column_definition="TEXT NOT NULL DEFAULT '{}'",
+            )
             self._backfill_legacy_rows(connection)
 
     @staticmethod
@@ -89,6 +96,21 @@ class SQLiteLeadStore:
             legacy_table_name = f"legacy_{table_name}"
             connection.execute(f"DROP TABLE IF EXISTS {legacy_table_name}")
             connection.execute(f"ALTER TABLE {table_name} RENAME TO {legacy_table_name}")
+
+    def _ensure_column(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        table_name: str,
+        column_name: str,
+        column_definition: str,
+    ) -> None:
+        columns = self._table_columns(connection, table_name)
+        if column_name in columns:
+            return
+        connection.execute(
+            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
+        )
 
     def _backfill_legacy_rows(self, connection: sqlite3.Connection) -> None:
         legacy_conversation_columns = self._table_columns(connection, "legacy_conversation_messages")
@@ -255,6 +277,7 @@ class SQLiteLeadStore:
             row = connection.execute(
                 """
                 SELECT field_values_json, qualification_status, missing_fields_json, summary
+                    , metadata_json
                 FROM lead_states
                 WHERE bot_id = ? AND wa_id = ?
                 """,
@@ -269,6 +292,7 @@ class SQLiteLeadStore:
             qualification_status=row["qualification_status"],
             missing_fields=json.loads(row["missing_fields_json"]),
             summary=row["summary"],
+            metadata=LeadRuntimeMetadata.from_payload(json.loads(row["metadata_json"])),
         )
 
     def save_lead_state(self, bot_id: str, wa_id: str, lead_state: LeadState) -> None:
@@ -282,14 +306,16 @@ class SQLiteLeadStore:
                     qualification_status,
                     missing_fields_json,
                     summary,
+                    metadata_json,
                     updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(bot_id, wa_id) DO UPDATE SET
                     field_values_json = excluded.field_values_json,
                     qualification_status = excluded.qualification_status,
                     missing_fields_json = excluded.missing_fields_json,
                     summary = excluded.summary,
+                    metadata_json = excluded.metadata_json,
                     updated_at = CURRENT_TIMESTAMP
                 """,
                 (
@@ -299,6 +325,7 @@ class SQLiteLeadStore:
                     lead_state.qualification_status,
                     json.dumps(lead_state.missing_fields, ensure_ascii=False),
                     lead_state.summary,
+                    json.dumps(lead_state.metadata.__dict__, ensure_ascii=False),
                 ),
             )
 

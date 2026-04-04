@@ -5,6 +5,7 @@ import type {
   DashboardSessionPayload,
   LeadSummary,
   TemplateSendRequest,
+  TemplateTestRequest,
 } from '@/lib/types'
 
 export class DashboardApiError extends Error {
@@ -104,6 +105,21 @@ export function deleteBot(token: string, botId: string) {
 export function sendTemplate(token: string, payload: TemplateSendRequest) {
   return dashboardFetch<{ status: string }>(
     '/api/dashboard/send-template',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+    token,
+  )
+}
+
+export function sendTestTemplate(
+  token: string,
+  botId: string,
+  payload: TemplateTestRequest,
+) {
+  return dashboardFetch<{ status: string }>(
+    `/api/dashboard/bots/${botId}/test-template`,
     {
       method: 'POST',
       body: JSON.stringify(payload),

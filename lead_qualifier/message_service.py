@@ -4,6 +4,11 @@ import logging
 
 from lead_qualifier.anthropic_client import AnthropicLeadQualifier
 from lead_qualifier.bot_config_store import BotConfigStore
+from lead_qualifier.lead_state_factory import (
+    build_empty_lead_state,
+    infer_initial_template_from_history,
+    with_contact_name,
+)
 from lead_qualifier.models import InboundWhatsAppMessage, StoredMessage
 from lead_qualifier.store_protocol import LeadStore
 from lead_qualifier.whatsapp_client import WhatsAppCloudClient
@@ -59,10 +64,23 @@ class InboundMessageService:
                 return
 
             history = self._store.list_messages(config.id, message.wa_id)
+            lead_state = self._store.get_lead_state(config.id, message.wa_id) or build_empty_lead_state(
+                config,
+                contact_name=message.contact_name,
+            )
+            lead_state = infer_initial_template_from_history(lead_state, history)
+            lead_state = with_contact_name(lead_state, message.contact_name)
+
             user_message = StoredMessage.user(message.text)
             self._store.save_message(config.id, message.wa_id, user_message)
 
-            response, usage = self._qualifier.generate_reply(config, history + [user_message])
+            response, metadata, usage = self._qualifier.generate_reply(
+                config,
+                history + [user_message],
+                lead_state=lead_state,
+                wa_id=message.wa_id,
+                contact_name=message.contact_name,
+            )
             self._whatsapp_client.send_text_message(
                 to=message.wa_id,
                 body=response.reply_text,
@@ -70,7 +88,7 @@ class InboundMessageService:
                 reply_to_message_id=message.message_id,
             )
             self._store.save_message(config.id, message.wa_id, response.to_stored_message())
-            self._store.save_lead_state(config.id, message.wa_id, response.to_lead_state())
+            self._store.save_lead_state(config.id, message.wa_id, response.to_lead_state(metadata))
             self._store.mark_inbound_message_completed(message.message_id)
 
             LOGGER.info(

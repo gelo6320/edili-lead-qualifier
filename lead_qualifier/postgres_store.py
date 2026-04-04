@@ -5,7 +5,7 @@ import json
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
-from lead_qualifier.models import LeadState, StoredMessage
+from lead_qualifier.models import LeadRuntimeMetadata, LeadState, StoredMessage
 from lead_qualifier.store_protocol import LeadConversationSummary
 
 
@@ -108,7 +108,8 @@ class PostgresLeadStore:
                         field_values_json::text AS field_values_json,
                         qualification_status,
                         missing_fields_json::text AS missing_fields_json,
-                        summary
+                        summary,
+                        metadata_json::text AS metadata_json
                     FROM {self._lead_states_table}
                     WHERE bot_id = %s AND wa_id = %s
                     """,
@@ -124,6 +125,7 @@ class PostgresLeadStore:
             qualification_status=row["qualification_status"],
             missing_fields=json.loads(row["missing_fields_json"]),
             summary=row["summary"],
+            metadata=LeadRuntimeMetadata.from_payload(json.loads(row["metadata_json"])),
         )
 
     def save_lead_state(self, bot_id: str, wa_id: str, lead_state: LeadState) -> None:
@@ -138,14 +140,16 @@ class PostgresLeadStore:
                         qualification_status,
                         missing_fields_json,
                         summary,
+                        metadata_json,
                         updated_at
                     )
-                    VALUES (%s, %s, %s::jsonb, %s, %s::jsonb, %s, timezone('utc', now()))
+                    VALUES (%s, %s, %s::jsonb, %s, %s::jsonb, %s, %s::jsonb, timezone('utc', now()))
                     ON CONFLICT (bot_id, wa_id) DO UPDATE SET
                         field_values_json = excluded.field_values_json,
                         qualification_status = excluded.qualification_status,
                         missing_fields_json = excluded.missing_fields_json,
                         summary = excluded.summary,
+                        metadata_json = excluded.metadata_json,
                         updated_at = timezone('utc', now())
                     """,
                     (
@@ -155,6 +159,7 @@ class PostgresLeadStore:
                         lead_state.qualification_status,
                         json.dumps(lead_state.missing_fields, ensure_ascii=False),
                         lead_state.summary,
+                        json.dumps(lead_state.metadata.__dict__, ensure_ascii=False),
                     ),
                 )
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from lead_qualifier.bot_config_models import BotConfig
+from lead_qualifier.models import LeadState
+from lead_qualifier.prompt_templates import MAIN_PROMPT_TEMPLATE, SYSTEM_PROMPT_TEMPLATE
 
 
 def build_response_schema(config: BotConfig) -> dict[str, Any]:
@@ -58,70 +60,108 @@ def build_response_schema(config: BotConfig) -> dict[str, Any]:
     }
 
 
-def build_system_blocks(config: BotConfig) -> list[dict[str, Any]]:
-    required_fields = config.required_fields
+def build_system_blocks(
+    config: BotConfig,
+    lead_state: LeadState,
+    *,
+    tool_rules: str,
+) -> list[dict[str, Any]]:
     objective_lines = "\n".join(
         f"{index}. {field.label}"
-        for index, field in enumerate(required_fields, start=1)
+        for index, field in enumerate(config.required_fields, start=1)
     )
     field_mapping = "\n".join(
         f"{field.key}: {field.label}. {field.description}"
         + (f" Valori ammessi: {', '.join(field.options)}." if field.options else "")
         for field in config.fields
     )
+    missing_fields_list = ", ".join(config.field_keys)
+    status_list = ", ".join(config.qualification_statuses)
     booking_instruction = (
         f"Se il lead e disponibile, puoi proporre una chiamata e citare questo link: {config.booking_url}."
         if config.booking_url
         else "Se il lead e disponibile, proponi una chiamata senza inventare link o dettagli di calendario."
     )
-    missing_fields_list = ", ".join(config.field_keys)
-    status_list = ", ".join(config.qualification_statuses)
-    extra_prompt = config.prompt_preamble.strip()
 
-    system_instructions = f"""
-<role>
-Sei {config.agent_name}, un'assistente commerciale molto pratica che qualifica lead per {config.company_name}.
-</role>
+    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
+        agent_name=config.agent_name,
+        company_name=config.company_name,
+        booking_instruction=booking_instruction,
+        tool_rules=tool_rules,
+        missing_fields_list=missing_fields_list,
+        status_list=status_list,
+    )
 
-<objective>
-Il tuo obiettivo e raccogliere queste informazioni dal lead:
-{objective_lines}
-</objective>
-
-<working_mode>
-La cronologia contiene i precedenti messaggi utente e i precedenti messaggi assistant in formato JSON, coerenti con lo schema di output finale.
-Usa quella cronologia per mantenere memoria dello stato del lead.
-Preserva i dati gia raccolti a meno che il lead non li corregga esplicitamente.
-</working_mode>
-
-<conversation_rules>
-- Scrivi sempre in italiano naturale.
-- Sii breve, chiara, educata e concreta.
-- Non usare markdown, elenchi o emoji.
-- Non fare piu di due domande alla volta.
-- Se il lead risponde in modo parziale, conferma brevemente cio che hai capito e fai la domanda successiva.
-- Se il lead non sa un dato, accetta anche indicazioni approssimative senza bloccare la conversazione.
-- Quando i campi richiesti sono raccolti in modo sufficiente, riassumi in una frase e proponi il passo successivo.
-- {booking_instruction}
-- Non inventare prezzi, disponibilita di squadre, tempi di cantiere o sopralluoghi gia fissati.
-</conversation_rules>
-
-<field_mapping>
-{field_mapping}
-</field_mapping>
-
-<output_contract>
-Devi rispondere sempre e solo con JSON valido compatibile con lo schema fornito dall'app.
-Il campo reply_text contiene l'unico testo destinato all'utente.
-Il campo field_values deve contenere tutte le chiavi previste, usando stringa vuota per i valori non ancora noti.
-Il campo missing_fields deve contenere solo chiavi tra: {missing_fields_list}.
-Il campo qualification_status deve essere uno tra: {status_list}.
-</output_contract>
-""".strip()
-
-    if extra_prompt:
-        system_instructions += f"\n\n<tenant_specific_rules>\n{extra_prompt}\n</tenant_specific_rules>"
+    runtime_prompt = MAIN_PROMPT_TEMPLATE.format(
+        company_context=_build_company_context(config),
+        objective_lines=objective_lines or "1. Nessun requisito configurato.",
+        field_mapping=field_mapping or "Nessun campo configurato.",
+        qualification_status=lead_state.qualification_status or config.default_status,
+        missing_fields=_format_missing_fields(lead_state),
+        field_values=_format_field_values(config, lead_state),
+        summary=lead_state.summary.strip() or "Nessun riassunto ancora disponibile.",
+        conversation_bootstrap=_format_conversation_bootstrap(lead_state),
+        lead_manager_status=_format_lead_manager_status(lead_state),
+    )
 
     return [
-        {"type": "text", "text": system_instructions, "cache_control": {"type": "ephemeral", "ttl": "1h"}},
+        {
+            "type": "text",
+            "text": system_prompt,
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
+        },
+        {
+            "type": "text",
+            "text": runtime_prompt,
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
+        },
     ]
+
+
+def _build_company_context(config: BotConfig) -> str:
+    lines = [f"Azienda: {config.company_name}"]
+    if config.company_description.strip():
+        lines.append(f"Descrizione: {config.company_description.strip()}")
+    if config.service_area.strip():
+        lines.append(f"Area di servizio: {config.service_area.strip()}")
+    if config.company_services:
+        lines.append(f"Servizi principali: {', '.join(config.company_services)}")
+    if config.booking_url.strip():
+        lines.append(f"Booking URL: {config.booking_url.strip()}")
+    return "\n".join(lines)
+
+
+def _format_missing_fields(lead_state: LeadState) -> str:
+    if not lead_state.missing_fields:
+        return "Nessuno."
+    return ", ".join(lead_state.missing_fields)
+
+
+def _format_field_values(config: BotConfig, lead_state: LeadState) -> str:
+    lines: list[str] = []
+    for field in config.fields:
+        value = lead_state.field_values.get(field.key, "").strip() or "non ancora raccolto"
+        lines.append(f"- {field.label}: {value}")
+    return "\n".join(lines)
+
+
+def _format_conversation_bootstrap(lead_state: LeadState) -> str:
+    metadata = lead_state.metadata
+    if not metadata.has_initial_template:
+        return "Nessun template iniziale registrato."
+    parameters = ", ".join(metadata.initial_template_parameters) or "nessun parametro body"
+    return (
+        f"Conversazione aperta con template Meta '{metadata.initial_template_name}' "
+        f"in lingua '{metadata.initial_template_language or 'default'}' con parametri: {parameters}."
+    )
+
+
+def _format_lead_manager_status(lead_state: LeadState) -> str:
+    metadata = lead_state.metadata
+    if not metadata.is_forwarded_to_lead_manager:
+        return "Lead non ancora inviato al lead manager."
+    reference = metadata.lead_manager_reference or "n/d"
+    return (
+        f"Lead gia inviato al lead manager il {metadata.lead_manager_forwarded_at}. "
+        f"Riferimento: {reference}. Nota invio: {metadata.lead_manager_note or 'nessuna'}."
+    )

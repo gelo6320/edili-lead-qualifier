@@ -35,7 +35,7 @@ import {
   getDashboardAppConfig,
   getDashboardSession,
   listBots,
-  sendTemplate,
+  sendTestTemplate,
   updateBot,
 } from '@/lib/dashboard-api'
 import { getBrowserSupabaseClient } from '@/lib/supabase-browser'
@@ -43,7 +43,7 @@ import { cn } from '@/lib/utils'
 import type {
   BotConfig,
   DashboardUser,
-  TemplateSendRequest,
+  TemplateTestRequest,
 } from '@/lib/types'
 
 type Section = 'config' | 'template' | 'chat'
@@ -342,7 +342,7 @@ function App() {
     }
   }
 
-  async function handleSendTemplate(payload: TemplateSendRequest) {
+  async function handleSendTemplate(payload: TemplateTestRequest) {
     if (!accessToken) return
 
     setIsSendingTemplate(true)
@@ -350,8 +350,8 @@ function App() {
     setTemplateNotice('')
 
     try {
-      await sendTemplate(accessToken, payload)
-      setTemplateNotice('Inviato.')
+      await sendTestTemplate(accessToken, draftBot.id, payload)
+      setTemplateNotice('Template di test inviato e conversazione inizializzata.')
     } catch (error) {
       setTemplateError(
         error instanceof DashboardApiError

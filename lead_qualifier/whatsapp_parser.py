@@ -35,6 +35,18 @@ def _extract_text(message: dict[str, Any]) -> str:
     message_type = str(message.get("type", "")).strip()
     if message_type == "text":
         return str(message.get("text", {}).get("body", "")).strip()
+    if message_type == "image":
+        caption = str(message.get("image", {}).get("caption", "")).strip()
+        if caption:
+            return (
+                "Il lead ha inviato una foto o immagine del lavoro. "
+                f"Didascalia del lead: {caption}. "
+                "Non puoi vedere il contenuto visivo, ma considera che il lead ha condiviso immagini utili per la valutazione."
+            )
+        return (
+            "Il lead ha inviato una foto o immagine del lavoro. "
+            "Non puoi vedere il contenuto visivo, ma considera che il lead ha condiviso immagini utili per la valutazione."
+        )
     if message_type == "button":
         return str(message.get("button", {}).get("text", "")).strip()
     if message_type == "interactive":

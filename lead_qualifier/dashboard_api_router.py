@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from dataclasses import asdict
 
-from lead_qualifier.api_models import BotConfigRequest, TemplateSendRequest
+from lead_qualifier.api_models import BotConfigRequest, TemplateSendRequest, TemplateTestRequest
 from lead_qualifier.bot_config_store import BotConfigStore
 from lead_qualifier.dashboard_auth import require_dashboard_user
 from lead_qualifier.outbound_service import OutboundMessageService
@@ -77,6 +77,23 @@ def build_dashboard_api_router(
         await require_dashboard_user(request, settings)
         response = outbound_service.send_template(
             bot_id=payload.bot_id,
+            to=payload.to,
+            template_name=payload.template_name,
+            language_code=payload.language_code,
+            body_parameters=payload.body_parameters,
+        )
+        return {
+            "status": "sent",
+            "response": response,
+        }
+
+    @router.post("/bots/{bot_id}/test-template")
+    async def send_test_template(bot_id: str, payload: TemplateTestRequest, request: Request) -> dict:
+        await require_dashboard_user(request, settings)
+        if config_store.get(bot_id) is None:
+            raise HTTPException(status_code=404, detail="Bot non trovato.")
+        response = outbound_service.send_test_template(
+            bot_id=bot_id,
             to=payload.to,
             template_name=payload.template_name,
             language_code=payload.language_code,

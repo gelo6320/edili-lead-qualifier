@@ -115,12 +115,47 @@ export function BotEditor({
         </div>
 
         <div className="grid gap-2">
+          <Label htmlFor="company-service-area" className="text-sm font-semibold">Area di servizio</Label>
+          <Input
+            id="company-service-area"
+            className="h-11 rounded-xl"
+            value={bot.service_area}
+            onChange={(event) => patch('service_area', event.target.value)}
+          />
+        </div>
+
+        <div className="grid gap-2">
           <Label htmlFor="agent-name" className="text-sm font-semibold">Nome agente</Label>
           <Input
             id="agent-name"
             className="h-11 rounded-xl"
             value={bot.agent_name}
             onChange={(event) => patch('agent_name', event.target.value)}
+          />
+        </div>
+
+        <div className="grid gap-2 sm:col-span-2 xl:col-span-3">
+          <Label htmlFor="company-description" className="text-sm font-semibold">Descrizione azienda</Label>
+          <Textarea
+            id="company-description"
+            className="min-h-28 rounded-xl"
+            value={bot.company_description}
+            onChange={(event) =>
+              patch('company_description', event.target.value)
+            }
+          />
+        </div>
+
+        <div className="grid gap-2 sm:col-span-2 xl:col-span-3">
+          <Label htmlFor="company-services" className="text-sm font-semibold">Servizi principali</Label>
+          <Input
+            id="company-services"
+            className="h-11 rounded-xl"
+            placeholder="Ristrutturazioni, Facciate, Tetti"
+            value={listToCommaSeparated(bot.company_services)}
+            onChange={(event) =>
+              patch('company_services', commaSeparatedToList(event.target.value))
+            }
           />
         </div>
 
@@ -143,6 +178,18 @@ export function BotEditor({
             className="h-11 rounded-xl"
             value={bot.booking_url}
             onChange={(event) => patch('booking_url', event.target.value)}
+          />
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="lead-manager-page-id" className="text-sm font-semibold">Lead manager page_id</Label>
+          <Input
+            id="lead-manager-page-id"
+            className="h-11 rounded-xl font-mono text-xs"
+            value={bot.lead_manager_page_id}
+            onChange={(event) =>
+              patch('lead_manager_page_id', event.target.value)
+            }
           />
         </div>
 
@@ -186,14 +233,8 @@ export function BotEditor({
           />
         </div>
 
-        <div className="grid gap-2 sm:col-span-2 xl:col-span-3">
-          <Label htmlFor="prompt-preamble" className="text-sm font-semibold">Prompt</Label>
-          <Textarea
-            id="prompt-preamble"
-            className="min-h-40 rounded-xl"
-            value={bot.prompt_preamble}
-            onChange={(event) => patch('prompt_preamble', event.target.value)}
-          />
+        <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground sm:col-span-2 xl:col-span-3">
+          Il prompt operativo e fisso a livello di codice. Qui puoi cambiare solo dati azienda, requisiti e routing verso il lead manager.
         </div>
       </section>
 

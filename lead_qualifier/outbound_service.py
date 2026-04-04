@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from lead_qualifier.bot_config_store import BotConfigStore
+from lead_qualifier.lead_state_factory import build_empty_lead_state, with_initial_template
 from lead_qualifier.models import StoredMessage
 from lead_qualifier.store_protocol import LeadStore
 from lead_qualifier.whatsapp_client import WhatsAppCloudClient
@@ -38,6 +39,14 @@ class OutboundMessageService:
             body_parameters=body_parameters,
         )
 
+        self._bootstrap_conversation(
+            bot_id=config.id,
+            wa_id=to,
+            template_name=template_name,
+            language_code=resolved_language,
+            body_parameters=body_parameters,
+        )
+
         template_payload = {
             "kind": "outbound_template",
             "template_name": template_name,
@@ -50,4 +59,48 @@ class OutboundMessageService:
             to,
             StoredMessage.assistant(display=display, payload=template_payload),
         )
-        return response
+        return {
+            "meta": response,
+            "conversation_created": True,
+        }
+
+    def send_test_template(
+        self,
+        *,
+        bot_id: str,
+        to: str,
+        body_parameters: list[str],
+        template_name: str | None = None,
+        language_code: str | None = None,
+    ) -> dict[str, Any]:
+        config = self._config_store.require(bot_id)
+        resolved_template_name = template_name or config.default_template_name
+        if not resolved_template_name:
+            raise RuntimeError("default_template_name non configurato per il bot.")
+
+        return self.send_template(
+            bot_id=bot_id,
+            to=to,
+            template_name=resolved_template_name,
+            language_code=language_code or config.template_language,
+            body_parameters=body_parameters,
+        )
+
+    def _bootstrap_conversation(
+        self,
+        *,
+        bot_id: str,
+        wa_id: str,
+        template_name: str,
+        language_code: str,
+        body_parameters: list[str],
+    ) -> None:
+        config = self._config_store.require(bot_id)
+        lead_state = self._store.get_lead_state(bot_id, wa_id) or build_empty_lead_state(config)
+        lead_state = with_initial_template(
+            lead_state,
+            template_name=template_name,
+            language_code=language_code,
+            body_parameters=body_parameters,
+        )
+        self._store.save_lead_state(bot_id, wa_id, lead_state)

@@ -5,7 +5,7 @@ Backend FastAPI + dashboard React per gestire un singolo runtime WhatsApp multi-
 Il runtime:
 - riceve messaggi da WhatsApp Cloud API
 - risolve il tenant in base al `phone_number_id`
-- usa Claude Sonnet 4.6 con prompt dinamico e schema JSON generato dai campi del bot
+- usa Claude Sonnet 4.6 con prompt base fisso, parametri dinamici per dati azienda e requisiti, e tool per le azioni operative
 - salva conversazioni, stato lead e configurazioni su Supabase
 
 La dashboard:
@@ -16,7 +16,10 @@ La dashboard:
 ## Cosa e cambiato
 
 - Nessuno schema lead hardcoded nel codice.
-- Ogni bot definisce i propri campi richiesti e il proprio prompt.
+- Ogni bot definisce i propri campi richiesti e i propri dati aziendali.
+- Il prompt operativo e il prompt principale sono fissati nel codice e non vengono editati da dashboard.
+- Quando il lead e qualificato, Claude puo usare il tool di handoff verso il lead manager.
+- Il template iniziale crea subito la conversazione e il relativo contesto agente.
 - I file in [bot_configs](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/bot_configs) restano come seed/versioning.
 - In produzione le configurazioni vengono persistite in `public.bot_configs` su Supabase.
 - Le tabelle runtime multi-tenant sono in `public`, non piu nello schema legacy `lead_qualifier`.
@@ -138,6 +141,15 @@ File esempio:
 `META_ENFORCE_SIGNATURE`
 - produzione: `true`
 
+### Lead manager
+
+`LEAD_MANAGER_API_URL`
+- endpoint del lead manager, ad esempio `https://.../api/leads/custom`
+
+`LEAD_MANAGER_API_KEY`
+- opzionale
+- inviato come header `X-API-Key` se valorizzato
+
 ### Logging
 
 `LOG_LEVEL`
@@ -154,12 +166,15 @@ Campi principali:
 - `id`
 - `name`
 - `company_name`
+- `company_description`
+- `service_area`
+- `company_services`
 - `agent_name`
 - `phone_number_id`
 - `default_template_name`
 - `template_language`
 - `booking_url`
-- `prompt_preamble`
+- `lead_manager_page_id`
 - `qualification_statuses`
 - `fields[]`
 

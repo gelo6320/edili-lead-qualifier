@@ -2,12 +2,20 @@
   "id": "default",
   "name": "Impresa Demo",
   "company_name": "Impresa Demo",
+  "company_description": "Impresa edile specializzata in ristrutturazioni, facciate, tetti e lavori di manutenzione straordinaria.",
+  "service_area": "Milano e provincia",
+  "company_services": [
+    "Ristrutturazioni complete",
+    "Facciate e cappotti",
+    "Tetti e coperture",
+    "Bagni e interni"
+  ],
   "agent_name": "Giulia",
   "phone_number_id": "",
   "default_template_name": "lead_primo_contatto",
   "template_language": "it",
   "booking_url": "",
-  "prompt_preamble": "Qualifica il lead in modo pratico e commerciale. Se il lead non vuole condividere un dato, accetta anche una stima o una risposta approssimativa.",
+  "lead_manager_page_id": "",
   "qualification_statuses": [
     "new",
     "in_progress",
@@ -26,6 +34,13 @@
       "key": "tipo_lavoro",
       "label": "Tipo di lavoro richiesto",
       "description": "Tipo di intervento richiesto dal lead, ad esempio ristrutturazione, cappotto, tetto, bagno, facciata o impianti.",
+      "required": true,
+      "options": []
+    },
+    {
+      "key": "immagini_situazione_attuale",
+      "label": "Foto o immagini della situazione attuale",
+      "description": "Richiedi al lead foto o immagini utili per capire meglio la situazione attuale e valutare il lavoro. Se le immagini arrivano, registra che sono state ricevute.",
       "required": true,
       "options": []
     },

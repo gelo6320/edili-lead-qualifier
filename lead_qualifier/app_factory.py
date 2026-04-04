@@ -8,9 +8,11 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from lead_qualifier.admin_router import build_admin_router
+from lead_qualifier.agent_tools import LeadQualifierToolbox
 from lead_qualifier.anthropic_client import AnthropicLeadQualifier
 from lead_qualifier.bot_config_store import BotConfigStore
 from lead_qualifier.dashboard_api_router import build_dashboard_api_router
+from lead_qualifier.lead_manager_client import LeadManagerClient
 from lead_qualifier.message_service import InboundMessageService
 from lead_qualifier.outbound_service import OutboundMessageService
 from lead_qualifier.settings import Settings
@@ -35,7 +37,9 @@ def create_app() -> FastAPI:
         max_size=4,
         timeout_seconds=settings.database_pool_timeout_seconds,
     )
-    qualifier = AnthropicLeadQualifier(settings)
+    lead_manager_client = LeadManagerClient(settings)
+    toolbox = LeadQualifierToolbox(lead_manager_client)
+    qualifier = AnthropicLeadQualifier(settings, toolbox)
     whatsapp_client = WhatsAppCloudClient(settings)
     message_service = InboundMessageService(store, config_store, qualifier, whatsapp_client)
     outbound_service = OutboundMessageService(store, config_store, whatsapp_client)

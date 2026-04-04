@@ -10,12 +10,15 @@ export type BotConfig = {
   id: string
   name: string
   company_name: string
+  company_description: string
+  service_area: string
+  company_services: string[]
   agent_name: string
   phone_number_id: string
   default_template_name: string
   template_language: string
   booking_url: string
-  prompt_preamble: string
+  lead_manager_page_id: string
   qualification_statuses: string[]
   fields: BotFieldConfig[]
 }
@@ -38,6 +41,13 @@ export type TemplateSendRequest = {
   bot_id: string
   to: string
   template_name: string
+  language_code?: string | null
+  body_parameters: string[]
+}
+
+export type TemplateTestRequest = {
+  to: string
+  template_name?: string | null
   language_code?: string | null
   body_parameters: string[]
 }
