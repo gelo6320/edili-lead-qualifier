@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { MessageSquare, Send } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -51,17 +52,23 @@ export function SendTemplateCard({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Template</CardTitle>
+    <Card className="border-border/60 shadow-sm">
+      <CardHeader className="border-b">
+        <CardTitle className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+            <MessageSquare className="h-4 w-4 text-primary" />
+          </div>
+          Template WhatsApp
+        </CardTitle>
       </CardHeader>
 
-      <CardContent className="grid gap-4">
+      <CardContent className="grid gap-5 pt-6">
         <div className="grid gap-4 md:grid-cols-3">
           <div className="grid gap-2">
-            <Label htmlFor="template-to">Numero lead</Label>
+            <Label htmlFor="template-to" className="text-sm font-semibold">Numero lead</Label>
             <Input
               id="template-to"
+              className="h-11 rounded-xl font-mono text-xs"
               placeholder="393401234567"
               value={to}
               onChange={(event) => setTo(event.target.value)}
@@ -69,18 +76,20 @@ export function SendTemplateCard({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="template-name">Template</Label>
+            <Label htmlFor="template-name" className="text-sm font-semibold">Template</Label>
             <Input
               id="template-name"
+              className="h-11 rounded-xl"
               value={templateName}
               onChange={(event) => setTemplateName(event.target.value)}
             />
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="template-language">Lingua</Label>
+            <Label htmlFor="template-language" className="text-sm font-semibold">Lingua</Label>
             <Input
               id="template-language"
+              className="h-11 rounded-xl"
               value={languageCode}
               onChange={(event) => setLanguageCode(event.target.value)}
             />
@@ -88,12 +97,12 @@ export function SendTemplateCard({
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="body-parameters">
+          <Label htmlFor="body-parameters" className="text-sm font-semibold">
             Parametri body, uno per riga
           </Label>
           <Textarea
             id="body-parameters"
-            className="min-h-28"
+            className="min-h-28 rounded-xl"
             placeholder={'Impresa Demo\nMilano'}
             value={bodyParametersRaw}
             onChange={(event) => setBodyParametersRaw(event.target.value)}
@@ -101,22 +110,27 @@ export function SendTemplateCard({
         </div>
 
         {notice ? (
-          <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+          <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-medium text-primary">
+            <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
             {notice}
           </div>
         ) : null}
 
         {error ? (
-          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             {error}
           </div>
         ) : null}
 
         <div className="flex justify-end">
           <Button
+            className="gap-2 rounded-xl shadow-sm shadow-primary/20"
             onClick={submit}
             disabled={!to.trim() || !templateName.trim() || pending}
           >
+            <Send className="h-3.5 w-3.5" />
             {pending ? 'Invio...' : 'Invia template'}
           </Button>
         </div>

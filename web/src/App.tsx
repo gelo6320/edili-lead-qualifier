@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Bot, LogOut } from 'lucide-react'
 
 import { AuthView } from '@/components/auth-view'
 import { BotEditor } from '@/components/bot-editor'
@@ -360,10 +361,13 @@ function App() {
 
   if (isBooting) {
     return (
-      <div className="min-h-screen bg-background p-6 text-foreground">
-        <Card className="mx-auto mt-24 max-w-sm">
+      <div className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
+        <Card className="w-full max-w-sm border-border/60 shadow-sm">
           <CardHeader>
-            <CardTitle>Caricamento...</CardTitle>
+            <CardTitle className="flex items-center gap-3">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              Caricamento...
+            </CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -372,10 +376,10 @@ function App() {
 
   if (configError) {
     return (
-      <div className="min-h-screen bg-background p-6 text-foreground">
-        <Card className="mx-auto mt-24 max-w-xl">
+      <div className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
+        <Card className="w-full max-w-xl border-border/60 shadow-sm">
           <CardHeader>
-            <CardTitle>Config mancante</CardTitle>
+            <CardTitle className="text-destructive">Config mancante</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">{configError}</CardContent>
         </Card>
@@ -399,19 +403,31 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-4 p-4 md:p-6">
-        <header className="flex items-center justify-between gap-4 border-b pb-4">
-          <div className="text-sm font-medium">Dashboard</div>
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-6 p-4 md:p-6 lg:p-8">
+        {/* Header */}
+        <header className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card px-5 py-4 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="text-sm text-muted-foreground">{user?.email}</div>
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0078ff] text-white shadow-md shadow-[#0078ff]/20">
+              <Bot className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-base font-[800] tracking-tight">Lead Qualifier</div>
+              <div className="text-xs text-muted-foreground">Dashboard di gestione</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden text-sm font-medium text-muted-foreground sm:block">
+              {user?.email}
+            </div>
+            <Button variant="outline" size="sm" className="gap-1.5 rounded-xl" onClick={handleSignOut}>
+              <LogOut className="h-3.5 w-3.5" />
               Esci
             </Button>
           </div>
         </header>
 
         {dashboardError ? (
-          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             {dashboardError}
           </div>
         ) : null}
