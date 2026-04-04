@@ -39,7 +39,12 @@ def build_dashboard_api_router(
         return {
             "supabase_url": settings.supabase_url,
             "supabase_publishable_key": settings.supabase_publishable_key,
-            "meta_oauth_enabled": bool(settings.meta_app_id and settings.meta_app_secret and settings.app_base_url),
+            "meta_oauth_enabled": bool(
+                settings.meta_app_id
+                and settings.meta_app_secret
+                and settings.app_base_url
+                and settings.supabase_service_role_key
+            ),
             "cloudflare_crawl_enabled": bool(settings.cloudflare_account_id and settings.cloudflare_api_token),
         }
 

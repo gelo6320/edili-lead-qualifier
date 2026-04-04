@@ -32,6 +32,22 @@ def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _is_schema_missing_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return any(
+        snippet in message
+        for snippet in (
+            "does not exist",
+            "schema cache",
+            "undefined column",
+            "could not find the",
+            "relation ",
+            "rpc",
+            "function ",
+        )
+    )
+
+
 class MetaIntegrationService:
     def __init__(self, settings: Settings, admin: SupabaseAdminClient) -> None:
         self._settings = settings
@@ -77,22 +93,27 @@ class MetaIntegrationService:
             description=f"Meta access token for lead qualifier user {owner_user_id}",
         )
 
-        self._admin.request(
-            "POST",
-            "/rest/v1/qualifier_meta_integrations",
-            json_body=[
-                {
-                    "owner_user_id": owner_user_id,
-                    "meta_user_id": _clean(profile.get("id")),
-                    "meta_user_name": _clean(profile.get("name")),
-                    "access_token_secret_id": secret_id,
-                    "token_expires_at": expires_at.isoformat(),
-                    "updated_at": _utc_now().isoformat(),
-                }
-            ],
-            params={"on_conflict": "owner_user_id"},
-            prefer="resolution=merge-duplicates",
-        )
+        try:
+            self._admin.request(
+                "POST",
+                "/rest/v1/qualifier_meta_integrations",
+                json_body=[
+                    {
+                        "owner_user_id": owner_user_id,
+                        "meta_user_id": _clean(profile.get("id")),
+                        "meta_user_name": _clean(profile.get("name")),
+                        "access_token_secret_id": secret_id,
+                        "token_expires_at": expires_at.isoformat(),
+                        "updated_at": _utc_now().isoformat(),
+                    }
+                ],
+                params={"on_conflict": "owner_user_id"},
+                prefer="resolution=merge-duplicates",
+            )
+        except SupabaseAdminError as exc:
+            if _is_schema_missing_error(exc):
+                raise MetaIntegrationError(self._migration_missing_message()) from exc
+            raise MetaIntegrationError(str(exc)) from exc
 
         return {
             "owner_user_id": owner_user_id,
@@ -101,15 +122,22 @@ class MetaIntegrationService:
         }
 
     def get_integration(self, owner_user_id: str) -> dict[str, Any]:
-        payload = self._admin.request(
-            "GET",
-            "/rest/v1/qualifier_meta_integrations",
-            params={
-                "owner_user_id": f"eq.{owner_user_id}",
-                "select": "owner_user_id,meta_user_id,meta_user_name,access_token_secret_id,token_expires_at",
-                "limit": "1",
-            },
-        )
+        if not self._admin.is_configured:
+            return {}
+        try:
+            payload = self._admin.request(
+                "GET",
+                "/rest/v1/qualifier_meta_integrations",
+                params={
+                    "owner_user_id": f"eq.{owner_user_id}",
+                    "select": "owner_user_id,meta_user_id,meta_user_name,access_token_secret_id,token_expires_at",
+                    "limit": "1",
+                },
+            )
+        except SupabaseAdminError as exc:
+            if _is_schema_missing_error(exc):
+                return {}
+            raise MetaIntegrationError(str(exc)) from exc
         if isinstance(payload, list) and payload:
             return payload[0]
         return {}
@@ -170,15 +198,34 @@ class MetaIntegrationService:
         }
 
     def list_page_options(self, owner_user_id: str) -> list[dict[str, str]]:
-        payload = self._admin.request(
-            "GET",
-            "/rest/v1/meta_page_subscriptions",
-            params={
-                "owner_user_id": f"eq.{owner_user_id}",
-                "select": "page_id,page_name,is_active,qualifier_bot_id,qualifier_bot_name",
-                "order": "page_name.asc",
-            },
-        )
+        if not self._admin.is_configured:
+            return []
+        try:
+            payload = self._admin.request(
+                "GET",
+                "/rest/v1/meta_page_subscriptions",
+                params={
+                    "owner_user_id": f"eq.{owner_user_id}",
+                    "select": "page_id,page_name,is_active,qualifier_bot_id,qualifier_bot_name",
+                    "order": "page_name.asc",
+                },
+            )
+        except SupabaseAdminError as exc:
+            if _is_schema_missing_error(exc):
+                try:
+                    payload = self._admin.request(
+                        "GET",
+                        "/rest/v1/meta_page_subscriptions",
+                        params={
+                            "owner_user_id": f"eq.{owner_user_id}",
+                            "select": "page_id,page_name,is_active",
+                            "order": "page_name.asc",
+                        },
+                    )
+                except SupabaseAdminError:
+                    return []
+            else:
+                raise MetaIntegrationError(str(exc)) from exc
         options: list[dict[str, str]] = []
         if not isinstance(payload, list):
             return options
@@ -200,35 +247,52 @@ class MetaIntegrationService:
         return options
 
     def assign_page_to_bot(self, *, owner_user_id: str, page_id: str, bot_id: str, bot_name: str) -> None:
-        self._admin.rpc(
-            "assign_meta_page_qualifier",
-            {
-                "p_owner_user_id": owner_user_id,
-                "p_page_id": page_id,
-                "p_bot_id": bot_id,
-                "p_bot_name": bot_name,
-            },
-        )
+        try:
+            self._admin.rpc(
+                "assign_meta_page_qualifier",
+                {
+                    "p_owner_user_id": owner_user_id,
+                    "p_page_id": page_id,
+                    "p_bot_id": bot_id,
+                    "p_bot_name": bot_name,
+                },
+            )
+        except SupabaseAdminError as exc:
+            if _is_schema_missing_error(exc):
+                raise MetaIntegrationError(self._migration_missing_message()) from exc
+            raise MetaIntegrationError(str(exc)) from exc
 
     def clear_page_assignment(self, *, owner_user_id: str, page_id: str) -> None:
-        self._admin.rpc(
-            "clear_meta_page_qualifier",
-            {
-                "p_owner_user_id": owner_user_id,
-                "p_page_id": page_id,
-            },
-        )
+        try:
+            self._admin.rpc(
+                "clear_meta_page_qualifier",
+                {
+                    "p_owner_user_id": owner_user_id,
+                    "p_page_id": page_id,
+                },
+            )
+        except SupabaseAdminError as exc:
+            if _is_schema_missing_error(exc):
+                raise MetaIntegrationError(self._migration_missing_message()) from exc
+            raise MetaIntegrationError(str(exc)) from exc
 
     def get_runtime_page_bridge(self, page_id: str) -> dict[str, Any]:
-        payload = self._admin.request(
-            "GET",
-            "/rest/v1/meta_page_subscriptions",
-            params={
-                "page_id": f"eq.{page_id}",
-                "select": "page_id,page_name,owner_user_id,qualifier_bot_id,qualifier_bot_name,qualifier_bridge_secret_id",
-                "limit": "1",
-            },
-        )
+        if not self._admin.is_configured:
+            return {}
+        try:
+            payload = self._admin.request(
+                "GET",
+                "/rest/v1/meta_page_subscriptions",
+                params={
+                    "page_id": f"eq.{page_id}",
+                    "select": "page_id,page_name,owner_user_id,qualifier_bot_id,qualifier_bot_name,qualifier_bridge_secret_id",
+                    "limit": "1",
+                },
+            )
+        except SupabaseAdminError as exc:
+            if _is_schema_missing_error(exc):
+                return {}
+            raise MetaIntegrationError(str(exc)) from exc
         if isinstance(payload, list) and payload:
             return payload[0]
         return {}
@@ -423,26 +487,43 @@ class MetaIntegrationService:
         name: str | None = None,
         description: str | None = None,
     ) -> str:
-        payload = self._admin.rpc(
-            "upsert_vault_secret",
-            {
-                "p_secret": secret,
-                "p_secret_id": _clean(secret_id) or None,
-                "p_name": name,
-                "p_description": description,
-            },
-        )
+        try:
+            payload = self._admin.rpc(
+                "upsert_vault_secret",
+                {
+                    "p_secret": secret,
+                    "p_secret_id": _clean(secret_id) or None,
+                    "p_name": name,
+                    "p_description": description,
+                },
+            )
+        except SupabaseAdminError as exc:
+            if _is_schema_missing_error(exc):
+                raise MetaIntegrationError(self._migration_missing_message()) from exc
+            raise MetaIntegrationError(str(exc)) from exc
         return _extract_rpc_scalar(payload, "secret_id")
 
     def _read_secret(self, secret_id: object) -> str:
-        payload = self._admin.rpc(
-            "read_vault_secret",
-            {"p_secret_id": _clean(secret_id)},
-        )
+        try:
+            payload = self._admin.rpc(
+                "read_vault_secret",
+                {"p_secret_id": _clean(secret_id)},
+            )
+        except SupabaseAdminError as exc:
+            if _is_schema_missing_error(exc):
+                raise MetaIntegrationError(self._migration_missing_message()) from exc
+            raise MetaIntegrationError(str(exc)) from exc
         secret = _extract_rpc_scalar(payload, "secret")
         if not secret:
             raise MetaIntegrationError("Segreto Vault non trovato.")
         return secret
+
+    @staticmethod
+    def _migration_missing_message() -> str:
+        return (
+            "Schema Supabase non aggiornato per integrazione Meta/bridge. "
+            "Applica la migration 20260405_180000_add_meta_bridge_and_knowledge.sql."
+        )
 
 
 def _infer_template_variable_count(components: object) -> int:
