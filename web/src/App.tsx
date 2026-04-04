@@ -68,7 +68,7 @@ function App() {
   const [authError, setAuthError] = useState('')
   const [isSigningIn, setIsSigningIn] = useState(false)
 
-  const [user, setUser] = useState<DashboardUser | null>(null)
+  const [, setUser] = useState<DashboardUser | null>(null)
   const [bots, setBots] = useState<BotConfig[]>([])
   const [selectedBotId, setSelectedBotId] = useState<string | null>(null)
   const [draftBot, setDraftBot] = useState<BotConfig>(createEmptyBotConfig())
@@ -443,7 +443,7 @@ function App() {
 
         <div className="relative min-w-0 flex-1 lg:max-w-sm">
           <select
-            className="h-9 w-full cursor-pointer appearance-none rounded-lg border border-border/60 bg-background py-0 pr-8 pl-3 text-sm font-medium transition-colors hover:border-border focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 sm:w-52"
+            className="h-9 w-full cursor-pointer appearance-none rounded-lg border border-border/60 bg-background py-0 pr-8 pl-3 text-sm font-medium transition-colors hover:border-border focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
             value={selectedBotId ?? ''}
             onChange={(e) => {
               if (e.target.value) {

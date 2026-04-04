@@ -44,33 +44,9 @@ export function AuthView({
               <Bot className="h-8 w-8" />
             </div>
 
-            <h1 className="text-[2.75rem] font-[900] leading-[1.05] tracking-tight">
-              Lead Qualifier
-            </h1>
-            <p className="mt-4 text-lg font-medium leading-relaxed text-white/70">
-              Gestisci i tuoi bot WhatsApp, configura i campi di qualifica e invia template in un unico pannello.
+            <p className="text-lg font-medium leading-relaxed text-white/75">
+              Bot, campi e template in un unico pannello.
             </p>
-
-            <div className="mt-12 space-y-4">
-              {[
-                'Configurazione multi-bot',
-                'Qualifica lead con AI',
-                'Template WhatsApp integrati',
-              ].map((item, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-white/15">
-                    <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <span className="text-sm font-semibold text-white/80">{item}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-14 text-xs font-semibold text-white/30">
-              Powered by Gelo Digital
-            </div>
           </div>
         </div>
 
@@ -82,14 +58,10 @@ export function AuthView({
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0078ff]/10">
                 <Bot className="h-5 w-5 text-[#0078ff]" />
               </div>
-              <span className="text-lg font-[800] tracking-tight">Lead Qualifier</span>
             </div>
 
             <div className="mb-8">
               <h2 className="text-2xl font-[800] tracking-tight lg:text-3xl">Accedi</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Inserisci le tue credenziali per accedere alla dashboard.
-              </p>
             </div>
 
             <Card className="border-border/60 shadow-sm">
@@ -151,9 +123,6 @@ export function AuthView({
               </CardContent>
             </Card>
 
-            <p className="mt-6 text-center text-xs text-muted-foreground">
-              Accesso riservato agli operatori autorizzati.
-            </p>
           </div>
         </div>
       </div>
