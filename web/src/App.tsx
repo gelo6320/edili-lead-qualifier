@@ -3,10 +3,14 @@ import {
   Bot,
   ChevronDown,
   LogOut,
+  Menu,
   MessageCircle,
   MessageSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Settings,
+  X,
 } from 'lucide-react'
 
 import { AuthView } from '@/components/auth-view'
@@ -45,9 +49,9 @@ import type {
 type Section = 'config' | 'template' | 'chat'
 
 const NAV_ITEMS: { id: Section; label: string; icon: typeof Settings }[] = [
-  { id: 'config', label: 'Configurazione', icon: Settings },
-  { id: 'template', label: 'Template WhatsApp', icon: MessageSquare },
-  { id: 'chat', label: 'Conversazioni', icon: MessageCircle },
+  { id: 'config', label: 'Config', icon: Settings },
+  { id: 'template', label: 'Template', icon: MessageSquare },
+  { id: 'chat', label: 'Chat', icon: MessageCircle },
 ]
 
 function App() {
@@ -81,6 +85,17 @@ function App() {
 
   const [activeSection, setActiveSection] = useState<Section>('config')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.localStorage.getItem('dashboard-sidebar-collapsed') === 'true'
+  })
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      'dashboard-sidebar-collapsed',
+      String(isSidebarCollapsed),
+    )
+  }, [isSidebarCollapsed])
 
   useEffect(() => {
     let active = true
@@ -237,6 +252,7 @@ function App() {
     setEditorNotice('')
     setEditorError('')
     setActiveSection('config')
+    setMobileNavOpen(false)
   }
 
   async function refreshBots(preferredBotId: string | null) {
@@ -292,9 +308,7 @@ function App() {
           : await updateBot(accessToken, draftBot)
 
       setEditorNotice(
-        draftMode === 'new'
-          ? 'Bot creato e persistito su Supabase.'
-          : 'Configurazione aggiornata su Supabase.',
+        draftMode === 'new' ? 'Creato.' : 'Salvato.',
       )
       await refreshBots(savedBot.id)
     } catch (error) {
@@ -317,7 +331,7 @@ function App() {
 
     try {
       await deleteBot(accessToken, draftBot.id)
-      setEditorNotice('Bot eliminato.')
+      setEditorNotice('Eliminato.')
       await refreshBots(null)
     } catch (error) {
       setEditorError(
@@ -337,7 +351,7 @@ function App() {
 
     try {
       await sendTemplate(accessToken, payload)
-      setTemplateNotice('Template inviato con successo.')
+      setTemplateNotice('Inviato.')
     } catch (error) {
       setTemplateError(
         error instanceof DashboardApiError
@@ -397,33 +411,49 @@ function App() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
-      {/* ═══ Top bar ═══ */}
-      <header className="flex h-14 flex-shrink-0 items-center gap-4 border-b border-border/60 bg-card px-4 lg:px-6">
-        {/* Logo */}
-        <div className="flex items-center gap-2.5">
+      <header className="flex h-14 flex-shrink-0 items-center gap-2 border-b border-border/60 bg-card/90 px-3 backdrop-blur lg:px-4">
+        <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0078ff] text-white shadow-sm shadow-[#0078ff]/20">
             <Bot className="h-4 w-4" />
           </div>
-          <span className="hidden text-sm font-[800] tracking-tight sm:block">
-            Lead Qualifier
-          </span>
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="hidden lg:flex"
+            onClick={() => setIsSidebarCollapsed((current) => !current)}
+            aria-label={
+              isSidebarCollapsed
+                ? 'Espandi sidebar'
+                : 'Comprimi sidebar'
+            }
+            title={
+              isSidebarCollapsed
+                ? 'Espandi sidebar'
+                : 'Comprimi sidebar'
+            }
+          >
+            {isSidebarCollapsed ? (
+              <PanelLeftOpen className="h-4 w-4" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" />
+            )}
+          </Button>
         </div>
 
-        {/* Separator */}
-        <div className="hidden h-6 w-px bg-border/60 sm:block" />
-
-        {/* Bot selector */}
-        <div className="relative flex-1 sm:flex-none">
+        <div className="relative min-w-0 flex-1 lg:max-w-sm">
           <select
             className="h-9 w-full cursor-pointer appearance-none rounded-lg border border-border/60 bg-background py-0 pr-8 pl-3 text-sm font-medium transition-colors hover:border-border focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 sm:w-52"
             value={selectedBotId ?? ''}
             onChange={(e) => {
-              if (e.target.value) selectBot(e.target.value)
+              if (e.target.value) {
+                selectBot(e.target.value)
+                return
+              }
+              createNewDraft()
             }}
           >
-            {draftMode === 'new' ? (
-              <option value="">Nuovo bot</option>
-            ) : null}
+            <option value="">Nuovo</option>
             {bots.map((bot) => (
               <option key={bot.id} value={bot.id}>
                 {bot.name || bot.id}
@@ -433,52 +463,65 @@ function App() {
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         </div>
 
-        {/* Mobile nav toggle */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="ml-auto lg:hidden"
-          onClick={() => setMobileNavOpen(!mobileNavOpen)}
-        >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d={mobileNavOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'} />
-          </svg>
-        </Button>
-
-        {/* Right side: user + logout */}
-        <div className="ml-auto hidden items-center gap-3 lg:flex">
+        <div className="ml-auto flex items-center gap-1.5">
           {isLoadingDashboard ? (
             <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           ) : null}
-          <span className="text-xs text-muted-foreground">{user?.email}</span>
-          <Button variant="ghost" size="sm" className="gap-1.5" onClick={handleSignOut}>
-            <LogOut className="h-3.5 w-3.5" />
-            Esci
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={createNewDraft}
+            aria-label="Nuovo bot"
+            title="Nuovo bot"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="lg:hidden"
+            onClick={() => setMobileNavOpen((current) => !current)}
+            aria-label={mobileNavOpen ? 'Chiudi navigazione' : 'Apri navigazione'}
+            title={mobileNavOpen ? 'Chiudi navigazione' : 'Apri navigazione'}
+          >
+            {mobileNavOpen ? (
+              <X className="h-4 w-4" />
+            ) : (
+              <Menu className="h-4 w-4" />
+            )}
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={handleSignOut}
+            aria-label="Esci"
+            title="Esci"
+          >
+            <LogOut className="h-4 w-4" />
           </Button>
         </div>
       </header>
 
       {dashboardError ? (
-        <div className="border-b border-destructive/20 bg-destructive/5 px-4 py-2.5 text-center text-sm text-destructive">
+        <div className="border-b border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive lg:px-4">
           {dashboardError}
         </div>
       ) : null}
 
-      {/* ═══ Body: sidebar + main ═══ */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
         <aside
           className={cn(
-            'flex w-56 flex-shrink-0 flex-col border-r border-border/60 bg-card transition-transform lg:translate-x-0',
+            'absolute inset-y-0 left-0 z-30 flex h-full w-64 flex-col border-r border-border/60 bg-card/95 backdrop-blur transition-[width,transform] duration-200 lg:relative lg:inset-auto lg:z-auto lg:h-auto lg:bg-card',
             mobileNavOpen
-              ? 'absolute inset-y-14 left-0 z-30 translate-x-0 shadow-xl'
-              : 'absolute -translate-x-full lg:relative',
+              ? 'translate-x-0 shadow-xl lg:shadow-none'
+              : '-translate-x-full lg:translate-x-0',
+            isSidebarCollapsed ? 'lg:w-[4.5rem]' : 'lg:w-60',
           )}
         >
-          <nav className="flex-1 p-3">
-            <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Sezioni
-            </div>
+          <nav className="flex-1 p-2">
             {NAV_ITEMS.map((item) => {
               const isActive = activeSection === item.id
               const Icon = item.icon
@@ -487,7 +530,8 @@ function App() {
                   key={item.id}
                   type="button"
                   className={cn(
-                    'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    'flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    isSidebarCollapsed ? 'justify-center px-0' : 'gap-2.5',
                     isActive
                       ? 'bg-primary/[0.08] text-primary'
                       : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
@@ -496,40 +540,19 @@ function App() {
                     setActiveSection(item.id)
                     setMobileNavOpen(false)
                   }}
+                  aria-label={item.label}
+                  title={item.label}
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />
-                  {item.label}
+                  {!isSidebarCollapsed ? (
+                    <span className="truncate">{item.label}</span>
+                  ) : null}
                 </button>
               )
             })}
           </nav>
-
-          {/* Bottom actions */}
-          <div className="border-t border-border/60 p-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start gap-2 rounded-lg"
-              onClick={() => {
-                createNewDraft()
-                setMobileNavOpen(false)
-              }}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Nuovo bot
-            </Button>
-
-            {/* Mobile-only: user + logout */}
-            <div className="mt-3 flex items-center justify-between gap-2 lg:hidden">
-              <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
-              <Button variant="ghost" size="sm" className="flex-shrink-0 gap-1.5" onClick={handleSignOut}>
-                <LogOut className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
         </aside>
 
-        {/* Mobile overlay backdrop */}
         {mobileNavOpen ? (
           <div
             className="fixed inset-0 z-20 bg-black/20 lg:hidden"
@@ -537,48 +560,40 @@ function App() {
           />
         ) : null}
 
-        {/* ═══ Main content ═══ */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          <div className="mx-auto max-w-4xl">
-            {activeSection === 'config' ? (
-              <BotEditor
-                bot={draftBot}
-                editorError={editorError}
-                editorNotice={editorNotice}
-                isDeleting={isDeletingBot}
-                isNew={draftMode === 'new'}
-                isSaving={isSavingBot}
-                onChange={setDraftBot}
-                onDelete={handleDeleteBot}
-                onSave={handleSaveBot}
-              />
-            ) : null}
+        <main className="min-w-0 flex-1 overflow-y-auto p-3 lg:p-4">
+          {activeSection === 'config' ? (
+            <BotEditor
+              bot={draftBot}
+              editorError={editorError}
+              editorNotice={editorNotice}
+              isDeleting={isDeletingBot}
+              isNew={draftMode === 'new'}
+              isSaving={isSavingBot}
+              onChange={setDraftBot}
+              onDelete={handleDeleteBot}
+              onSave={handleSaveBot}
+            />
+          ) : null}
 
-            {activeSection === 'template' ? (
-              <SendTemplateCard
-                bot={draftBot}
-                error={templateError}
-                notice={templateNotice}
-                onSend={handleSendTemplate}
-                pending={isSendingTemplate}
-              />
-            ) : null}
+          {activeSection === 'template' ? (
+            <SendTemplateCard
+              bot={draftBot}
+              error={templateError}
+              notice={templateNotice}
+              onSend={handleSendTemplate}
+              pending={isSendingTemplate}
+            />
+          ) : null}
 
-            {activeSection === 'chat' ? (
-              draftMode === 'existing' ? (
-                <ChatView bot={draftBot} accessToken={accessToken} />
-              ) : (
-                <Card className="border-border/60 shadow-sm">
-                  <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                    <MessageCircle className="mb-3 h-10 w-10 text-muted-foreground/30" />
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Salva prima il bot per vedere le conversazioni
-                    </p>
-                  </CardContent>
-                </Card>
-              )
-            ) : null}
-          </div>
+          {activeSection === 'chat' ? (
+            draftMode === 'existing' ? (
+              <ChatView bot={draftBot} accessToken={accessToken} />
+            ) : (
+              <div className="flex min-h-[24rem] items-center justify-center rounded-xl border border-border/60 bg-card px-6 text-sm font-medium text-muted-foreground shadow-sm">
+                Salva il bot prima di aprire la chat
+              </div>
+            )
+          ) : null}
         </main>
       </div>
     </div>
