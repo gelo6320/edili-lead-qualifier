@@ -112,7 +112,6 @@ export function BotEditor({
   const selectedPage = getSelectedPage(bot, metaAssets)
   const phoneOptions = selectedWaba?.phone_numbers ?? []
   const templateOptions = selectedWaba?.templates ?? []
-  const hasMetaSelectors = metaAssets.connected && metaAssets.waba_options.length > 0
   const hasPageOptions = metaAssets.page_options.length > 0
 
   function patch<K extends keyof BotConfig>(key: K, value: BotConfig[K]) {
@@ -243,25 +242,12 @@ export function BotEditor({
               <ShieldCheck className="h-4 w-4 text-primary" />
               <h2 className="text-sm font-semibold">Connessione Meta e routing lead</h2>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Collega Facebook una sola volta, poi scegli numero WhatsApp, template e pagina `lead-manager` dai dati reali disponibili.
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={metaAssets.connected ? 'default' : 'outline'}>
               {metaAssets.connected ? 'Facebook collegato' : 'Facebook non collegato'}
             </Badge>
-            {metaAssets.connected ? (
-              <Badge variant="secondary">
-                {metaAssets.waba_options.length} WABA
-              </Badge>
-            ) : null}
-            {metaAssets.page_options.length > 0 ? (
-              <Badge variant="secondary">
-                {metaAssets.page_options.length} pagine lead-manager
-              </Badge>
-            ) : null}
           </div>
         </div>
 
@@ -304,7 +290,7 @@ export function BotEditor({
         {metaAssets.profile ? (
           <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
             <span className="font-semibold text-foreground">{metaAssets.profile.name}</span>
-            {' '}connesso su Meta. Token valido fino a {formatDateTime(metaAssets.profile.token_expires_at)}.
+            {' '}· {formatDateTime(metaAssets.profile.token_expires_at)}
           </div>
         ) : null}
 
@@ -315,165 +301,98 @@ export function BotEditor({
         ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {hasMetaSelectors ? (
-            <>
-              <div className="grid gap-2">
-                <Label htmlFor="meta-waba" className="text-sm font-semibold">Account WhatsApp Business</Label>
-                <select
-                  id="meta-waba"
-                  className={SELECT_CLASS_NAME}
-                  value={bot.meta_waba_id}
-                  onChange={(event) => handleWabaChange(event.target.value)}
-                >
-                  <option value="">Seleziona WABA</option>
-                  {metaAssets.waba_options.map((waba) => (
-                    <option key={waba.id} value={waba.id}>
-                      {waba.name} - {waba.business_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <div className="grid gap-2">
+            <Label htmlFor="meta-waba" className="text-sm font-semibold">Account WhatsApp Business</Label>
+            <select
+              id="meta-waba"
+              className={SELECT_CLASS_NAME}
+              value={bot.meta_waba_id}
+              onChange={(event) => handleWabaChange(event.target.value)}
+              disabled={!metaAssets.waba_options.length}
+            >
+              <option value="">
+                {metaAssets.waba_options.length ? 'Seleziona WABA' : 'Nessun WABA'}
+              </option>
+              {metaAssets.waba_options.map((waba) => (
+                <option key={waba.id} value={waba.id}>
+                  {waba.name} - {waba.business_name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="meta-phone-number" className="text-sm font-semibold">Numero invio WhatsApp</Label>
-                <select
-                  id="meta-phone-number"
-                  className={SELECT_CLASS_NAME}
-                  value={bot.phone_number_id}
-                  onChange={(event) => handlePhoneNumberChange(event.target.value)}
-                  disabled={!selectedWaba}
-                >
-                  <option value="">
-                    {selectedWaba ? 'Seleziona numero' : 'Seleziona prima un WABA'}
-                  </option>
-                  {phoneOptions.map((phone) => (
-                    <option key={phone.id} value={phone.id}>
-                      {phone.display_phone_number || phone.id}
-                      {phone.verified_name ? ` - ${phone.verified_name}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <div className="grid gap-2">
+            <Label htmlFor="meta-phone-number" className="text-sm font-semibold">Numero invio WhatsApp</Label>
+            <select
+              id="meta-phone-number"
+              className={SELECT_CLASS_NAME}
+              value={bot.phone_number_id}
+              onChange={(event) => handlePhoneNumberChange(event.target.value)}
+              disabled={!selectedWaba}
+            >
+              <option value="">
+                {selectedWaba ? 'Seleziona numero' : 'Seleziona WABA'}
+              </option>
+              {phoneOptions.map((phone) => (
+                <option key={phone.id} value={phone.id}>
+                  {phone.display_phone_number || phone.id}
+                  {phone.verified_name ? ` - ${phone.verified_name}` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="meta-template" className="text-sm font-semibold">Template iniziale</Label>
-                <select
-                  id="meta-template"
-                  className={SELECT_CLASS_NAME}
-                  value={bot.default_template_name}
-                  onChange={(event) => handleTemplateChange(event.target.value)}
-                  disabled={!selectedWaba}
-                >
-                  <option value="">
-                    {selectedWaba ? 'Seleziona template' : 'Seleziona prima un WABA'}
-                  </option>
-                  {templateOptions.map((template) => (
-                    <option key={`${template.name}-${template.language}`} value={template.name}>
-                      {template.name} - {template.language}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="grid gap-2">
-                <Label htmlFor="phone-number-id" className="text-sm font-semibold">Meta phone_number_id</Label>
-                <Input
-                  id="phone-number-id"
-                  className="h-11 rounded-xl font-mono text-xs"
-                  value={bot.phone_number_id}
-                  onChange={(event) => patch('phone_number_id', event.target.value)}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="default-template-name" className="text-sm font-semibold">Template di default</Label>
-                <Input
-                  id="default-template-name"
-                  className="h-11 rounded-xl"
-                  value={bot.default_template_name}
-                  onChange={(event) => patch('default_template_name', event.target.value)}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="template-language" className="text-sm font-semibold">Lingua template</Label>
-                <Input
-                  id="template-language"
-                  className="h-11 rounded-xl"
-                  value={bot.template_language}
-                  onChange={(event) => patch('template_language', event.target.value)}
-                />
-              </div>
-            </>
-          )}
+          <div className="grid gap-2">
+            <Label htmlFor="meta-template" className="text-sm font-semibold">Template iniziale</Label>
+            <select
+              id="meta-template"
+              className={SELECT_CLASS_NAME}
+              value={bot.default_template_name}
+              onChange={(event) => handleTemplateChange(event.target.value)}
+              disabled={!selectedWaba}
+            >
+              <option value="">
+                {selectedWaba ? 'Seleziona template' : 'Seleziona WABA'}
+              </option>
+              {templateOptions.map((template) => (
+                <option key={`${template.name}-${template.language}`} value={template.name}>
+                  {template.name} - {template.language}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div className="grid gap-2">
             <Label htmlFor="lead-manager-page" className="text-sm font-semibold">Pagina lead-manager</Label>
-            {hasPageOptions ? (
-              <select
-                id="lead-manager-page"
-                className={SELECT_CLASS_NAME}
-                value={bot.lead_manager_page_id}
-                onChange={(event) => handleLeadManagerPageChange(event.target.value)}
-              >
-                <option value="">Nessuna pagina collegata</option>
-                {metaAssets.page_options.map((page) => {
-                  const disabled = isPageReservedForAnotherBot(page, bot.id)
-                  return (
-                    <option key={page.id} value={page.id} disabled={disabled}>
-                      {page.name}
-                      {page.is_active === 'true' ? '' : ' - inattiva'}
-                      {disabled ? ` - assegnata a ${page.qualifier_bot_name || page.qualifier_bot_id}` : ''}
-                    </option>
-                  )
-                })}
-              </select>
-            ) : (
-              <Input
-                id="lead-manager-page"
-                className="h-11 rounded-xl font-mono text-xs"
-                value={bot.lead_manager_page_id}
-                onChange={(event) => patch('lead_manager_page_id', event.target.value)}
-              />
-            )}
+            <select
+              id="lead-manager-page"
+              className={SELECT_CLASS_NAME}
+              value={bot.lead_manager_page_id}
+              onChange={(event) => handleLeadManagerPageChange(event.target.value)}
+              disabled={!hasPageOptions}
+            >
+              <option value="">
+                {hasPageOptions ? 'Seleziona pagina' : 'Nessuna pagina disponibile'}
+              </option>
+              {metaAssets.page_options.map((page) => {
+                const disabled = isPageReservedForAnotherBot(page, bot.id)
+                return (
+                  <option key={page.id} value={page.id} disabled={disabled}>
+                    {page.name}
+                    {page.is_active === 'true' ? '' : ' - inattiva'}
+                    {disabled ? ` - assegnata a ${page.qualifier_bot_name || page.qualifier_bot_id}` : ''}
+                  </option>
+                )
+              })}
+            </select>
           </div>
         </div>
 
-        <div className="grid gap-3 rounded-xl border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground xl:grid-cols-2">
-          <div className="grid gap-1">
-            <span className="font-semibold text-foreground">Riepilogo collegamento</span>
-            <span>
-              Business: {bot.meta_business_name || 'non selezionato'}
-            </span>
-            <span>
-              WABA: {bot.meta_waba_name || 'non selezionato'}
-            </span>
-            <span>
-              Numero: {bot.whatsapp_display_phone_number || bot.phone_number_id || 'non selezionato'}
-            </span>
-            <span>
-              Template: {bot.default_template_name || 'non selezionato'}
-              {bot.template_language ? ` - ${bot.template_language}` : ''}
-            </span>
+        {selectedPage?.qualifier_bot_id && selectedPage.qualifier_bot_id !== bot.id ? (
+          <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            Pagina gia assegnata a {selectedPage.qualifier_bot_name || selectedPage.qualifier_bot_id}.
           </div>
-
-          <div className="grid gap-1">
-            <span className="font-semibold text-foreground">Bridge con lead-manager</span>
-            <span>
-              Pagina: {selectedPage?.name || bot.lead_manager_page_name || bot.lead_manager_page_id || 'non collegata'}
-            </span>
-            <span>
-              Variabili body template: {bot.default_template_variable_count}
-            </span>
-            {selectedPage?.qualifier_bot_id && selectedPage.qualifier_bot_id !== bot.id ? (
-              <span className="text-destructive">
-                La pagina selezionata e gia riservata al bot {selectedPage.qualifier_bot_name || selectedPage.qualifier_bot_id}.
-              </span>
-            ) : null}
-          </div>
-        </div>
+        ) : null}
       </section>
 
       <section className="grid gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-3">
@@ -592,19 +511,16 @@ export function BotEditor({
         <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground sm:col-span-2 xl:col-span-3">
           <div className="flex items-center gap-2 font-semibold text-foreground">
             <Globe className="h-4 w-4 text-primary" />
-            Personalizzazione sito + RAG
+            Sito + RAG
           </div>
-          <p className="mt-2">
-            L'analisi usa Cloudflare `/crawl` per estrarre contenuti dal sito, aggiorna automaticamente descrizione, area e servizi, e salva chunk consultabili dall'agente come knowledge base.
-          </p>
           {!cloudflareCrawlEnabled ? (
             <p className="mt-2 text-amber-700">
-              Configura `CLOUDFLARE_ACCOUNT_ID` e `CLOUDFLARE_API_TOKEN` per abilitare il crawl.
+              Configura Cloudflare.
             </p>
           ) : null}
           {isNew ? (
             <p className="mt-2">
-              Salva prima il bot per avviare il crawl e popolare la knowledge base associata.
+              Salva prima.
             </p>
           ) : null}
           {crawlNotice ? (
@@ -638,13 +554,10 @@ export function BotEditor({
             className="h-11 rounded-xl"
             value={bot.template_language}
             onChange={(event) => patch('template_language', event.target.value)}
-            readOnly={hasMetaSelectors}
+            readOnly
           />
         </div>
 
-        <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-          Il prompt operativo rimane a livello di codice. Qui governi identita aziendale, knowledge base e il bridge sicuro con `lead-manager`.
-        </div>
       </section>
 
       <FieldListEditor bot={bot} onChange={onChange} />

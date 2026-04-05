@@ -101,10 +101,6 @@ export function SendTemplateCard({
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-        L'invio del template crea subito la conversazione e inizializza il contesto agente per quel numero.
-      </div>
-
       {error ? (
         <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {error}

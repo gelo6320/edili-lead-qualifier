@@ -54,7 +54,6 @@ export function BotList({
           <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
             <Bot className="mx-auto mb-2 h-8 w-8 opacity-30" />
             <p className="font-medium">Nessun bot</p>
-            <p className="mt-1 text-xs">Crea il tuo primo bot per iniziare</p>
           </div>
         ) : null}
 

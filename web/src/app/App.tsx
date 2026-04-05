@@ -288,7 +288,7 @@ function App() {
     const message = normalizeUrlMessage(url.searchParams.get('message') ?? '')
     if (oauthStatus === 'success') {
       setEditorError('')
-      setEditorNotice('Account Facebook collegato. Asset aggiornati in dashboard.')
+      setEditorNotice('Facebook collegato.')
     } else {
       setEditorNotice('')
       setEditorError(message || 'Connessione Facebook fallita.')
@@ -468,7 +468,7 @@ function App() {
 
     try {
       await sendTestTemplate(accessToken, draftBot.id, payload)
-      setTemplateNotice('Template di test inviato e conversazione inizializzata.')
+      setTemplateNotice('Template inviato.')
     } catch (error) {
       setTemplateError(
         error instanceof DashboardApiError
@@ -518,7 +518,7 @@ function App() {
         site_url: normalizedUrl,
       })
       setCrawlNotice(
-        `Sito analizzato: ${result.pages_crawled} pagine e ${result.chunks_stored} chunk salvati.`,
+        `${result.pages_crawled} pagine · ${result.chunks_stored} chunk.`,
       )
       await refreshBots(result.bot.id)
     } catch (error) {
@@ -767,7 +767,7 @@ function App() {
               <ChatView bot={draftBot} accessToken={accessToken} />
             ) : (
               <div className="flex min-h-[24rem] items-center justify-center rounded-xl border border-border/60 bg-card px-6 text-sm font-medium text-muted-foreground shadow-sm">
-                Salva il bot prima di aprire la chat
+                Salva prima
               </div>
             )
           ) : null}

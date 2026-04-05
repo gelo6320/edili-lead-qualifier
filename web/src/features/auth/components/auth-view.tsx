@@ -43,10 +43,6 @@ export function AuthView({
             <div className="mb-10 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm">
               <Bot className="h-8 w-8" />
             </div>
-
-            <p className="text-lg font-medium leading-relaxed text-white/75">
-              Bot, campi e template in un unico pannello.
-            </p>
           </div>
         </div>
 
