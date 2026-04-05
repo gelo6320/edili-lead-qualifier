@@ -4,6 +4,7 @@ from fastapi import APIRouter, Header, HTTPException, Request
 
 from lead_qualifier.api.schemas import BridgeQualificationRequest
 from lead_qualifier.core.settings import Settings
+from lead_qualifier.integrations.whatsapp.client import WhatsAppCloudError
 from lead_qualifier.services.bridge_security import verify_bridge_signature
 from lead_qualifier.services.meta_integration import MetaIntegrationError, MetaIntegrationService
 from lead_qualifier.services.outbound import OutboundMessageService
@@ -17,6 +18,17 @@ def build_internal_router(
     outbound_service: OutboundMessageService,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/internal", tags=["internal"])
+
+    def _build_whatsapp_error_detail(exc: WhatsAppCloudError) -> dict[str, object]:
+        return {
+            "message": str(exc),
+            "classification": exc.classification,
+            "retryable": exc.retryable,
+            "meta_status_code": exc.status_code,
+            "meta_error_code": exc.error_code or None,
+            "meta_error_subcode": exc.error_subcode or None,
+            "meta_error_type": exc.error_type or None,
+        }
 
     def _require_lead_manager_api_key(x_api_key: str | None) -> None:
         expected = (settings.lead_manager_api_key or "").strip()
@@ -66,6 +78,14 @@ def build_internal_router(
                 phone=payload.phone,
                 full_name=payload.full_name or "",
             )
+        except WhatsAppCloudError as exc:
+            status_code = 400 if 400 <= exc.status_code < 500 else 502
+            raise HTTPException(
+                status_code=status_code,
+                detail=_build_whatsapp_error_detail(exc),
+            ) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 

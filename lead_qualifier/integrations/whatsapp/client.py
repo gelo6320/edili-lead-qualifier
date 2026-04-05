@@ -9,10 +9,26 @@ from lead_qualifier.core.settings import Settings
 
 
 class WhatsAppCloudError(RuntimeError):
-    def __init__(self, message: str, *, status_code: int = 500, payload: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int = 500,
+        payload: dict[str, Any] | None = None,
+        error_code: str = "",
+        error_subcode: str = "",
+        error_type: str = "",
+        classification: str = "unknown",
+        retryable: bool = False,
+    ) -> None:
         super().__init__(message)
         self.status_code = status_code
         self.payload = payload or {}
+        self.error_code = error_code
+        self.error_subcode = error_subcode
+        self.error_type = error_type
+        self.classification = classification
+        self.retryable = retryable
 
 
 def _parse_json(response: httpx.Response) -> Any:
@@ -25,10 +41,16 @@ def _parse_json(response: httpx.Response) -> Any:
 def _raise_for_error(response: httpx.Response, data: Any) -> None:
     if response.is_success:
         return
+    meta_error = _extract_meta_error_info(data, response.status_code)
     raise WhatsAppCloudError(
-        _format_meta_error(data, response.status_code),
+        meta_error["message"],
         status_code=response.status_code,
         payload=data if isinstance(data, dict) else {"response": data},
+        error_code=meta_error["error_code"],
+        error_subcode=meta_error["error_subcode"],
+        error_type=meta_error["error_type"],
+        classification=meta_error["classification"],
+        retryable=meta_error["retryable"],
     )
 
 
@@ -102,6 +124,10 @@ class WhatsAppCloudClient:
         normalized_to = self._normalize_recipient(to)
         if not normalized_to:
             raise RuntimeError("Numero destinatario non valido.")
+        if len(normalized_to) < 6 or len(normalized_to) > 15:
+            raise RuntimeError(
+                "Numero destinatario non valido. Usa il formato internazionale completo."
+            )
 
         payload: dict[str, Any] = {
             "messaging_product": "whatsapp",
@@ -136,6 +162,14 @@ class WhatsAppCloudClient:
         normalized_to = self._normalize_recipient(to)
         if not normalized_to:
             raise RuntimeError("Numero destinatario non valido.")
+        if len(normalized_to) < 6 or len(normalized_to) > 15:
+            raise RuntimeError(
+                "Numero destinatario non valido. Usa il formato internazionale completo."
+            )
+        if not template_name.strip():
+            raise RuntimeError("template_name non valido.")
+        if not language_code.strip():
+            raise RuntimeError("language_code non valido.")
 
         normalized_parameters = [str(value).strip() for value in (body_parameters or []) if str(value).strip()]
         template: dict[str, Any] = {
@@ -299,6 +333,163 @@ def _format_meta_error(payload: object, status_code: int) -> str:
             return detail
 
     return f"Errore Meta HTTP {status_code}."
+
+
+def _extract_meta_error_info(payload: object, status_code: int) -> dict[str, Any]:
+    error_code = ""
+    error_subcode = ""
+    error_type = ""
+    message = _format_meta_error(payload, status_code)
+
+    if isinstance(payload, dict):
+        error = payload.get("error")
+        if isinstance(error, dict):
+            error_code = str(error.get("code") or "").strip()
+            error_subcode = str(error.get("error_subcode") or "").strip()
+            error_type = str(error.get("type") or "").strip()
+
+    classification = _classify_meta_error(
+        payload,
+        status_code=status_code,
+        error_code=error_code,
+        error_subcode=error_subcode,
+        error_type=error_type,
+    )
+    retryable = _is_retryable_meta_error(classification, status_code)
+    user_message = _build_user_safe_meta_error(
+        payload,
+        classification=classification,
+        error_code=error_code,
+        error_subcode=error_subcode,
+        status_code=status_code,
+    )
+
+    return {
+        "message": user_message or message,
+        "error_code": error_code,
+        "error_subcode": error_subcode,
+        "error_type": error_type,
+        "classification": classification,
+        "retryable": retryable,
+    }
+
+
+def _classify_meta_error(
+    payload: object,
+    *,
+    status_code: int,
+    error_code: str,
+    error_subcode: str,
+    error_type: str,
+) -> str:
+    normalized = " ".join(
+        str(part or "").strip().lower()
+        for part in [
+            error_type,
+            _extract_meta_error_message(payload),
+            _extract_meta_error_details(payload),
+        ]
+        if str(part or "").strip()
+    )
+
+    if error_code in {"131026"}:
+        return "recipient"
+    if error_code in {"133010"}:
+        return "sender"
+    if error_code in {"4", "80007", "130429", "131048"}:
+        return "throttling"
+    if error_code in {"1", "2", "131000"} or status_code >= 500:
+        return "transient"
+    if status_code in {401, 403}:
+        return "authorization"
+    if error_code == "100":
+        if any(token in normalized for token in ("template", "language", "component", "parameter")):
+            return "template"
+        if any(token in normalized for token in ("phone", "recipient", "wa_id", "to")):
+            return "recipient"
+        return "invalid_request"
+    if any(token in normalized for token in ("recipient", "receiver", "undeliverable", "not a valid whatsapp")):
+        return "recipient"
+    if any(token in normalized for token in ("template", "language", "parameter", "component")):
+        return "template"
+    if any(token in normalized for token in ("phone_number_id", "not registered", "sender")):
+        return "sender"
+    return "unknown"
+
+
+def _is_retryable_meta_error(classification: str, status_code: int) -> bool:
+    if classification in {"throttling", "transient"}:
+        return True
+    return status_code >= 500
+
+
+def _build_user_safe_meta_error(
+    payload: object,
+    *,
+    classification: str,
+    error_code: str,
+    error_subcode: str,
+    status_code: int,
+) -> str:
+    meta_message = _extract_meta_error_message(payload)
+    meta_details = _extract_meta_error_details(payload)
+    diagnostic = " ".join(part for part in [meta_message, meta_details] if part).strip()
+
+    if classification == "recipient":
+        base = (
+            "Meta ha rifiutato il messaggio: il numero destinatario non e valido "
+            "oppure non puo ricevere messaggi WhatsApp."
+        )
+    elif classification == "template":
+        base = (
+            "Meta ha rifiutato il template: controlla nome template, lingua e parametri inviati."
+        )
+    elif classification == "sender":
+        base = (
+            "Meta ha rifiutato il messaggio: il numero WhatsApp del bot non e configurato "
+            "o registrato correttamente."
+        )
+    elif classification == "authorization":
+        base = "Meta ha rifiutato la richiesta per un problema di autorizzazione o permessi."
+    elif classification == "throttling":
+        base = "Meta non ha accettato l'invio per limiti temporanei. Riprova tra poco."
+    elif classification == "transient":
+        base = "Meta non e riuscita a processare l'invio in questo momento. Riprova."
+    elif classification == "invalid_request":
+        base = "Meta ha rifiutato la richiesta per parametri non validi."
+    else:
+        base = diagnostic or f"Errore Meta HTTP {status_code}."
+
+    suffix = ""
+    if error_code and error_subcode:
+        suffix = f" (code {error_code}, subcode {error_subcode})"
+    elif error_code:
+        suffix = f" (code {error_code})"
+
+    if diagnostic and diagnostic not in base:
+        return f"{base}{suffix} Dettaglio Meta: {diagnostic}".strip()
+    return f"{base}{suffix}".strip()
+
+
+def _extract_meta_error_message(payload: object) -> str:
+    if not isinstance(payload, dict):
+        return ""
+    error = payload.get("error")
+    if not isinstance(error, dict):
+        return ""
+    return str(error.get("message") or "").strip()
+
+
+def _extract_meta_error_details(payload: object) -> str:
+    if not isinstance(payload, dict):
+        return ""
+    error = payload.get("error")
+    if not isinstance(error, dict):
+        return ""
+    error_data = error.get("error_data")
+    if not isinstance(error_data, dict):
+        return ""
+    return str(error_data.get("details") or "").strip()
 
 
 def _clean(value: object) -> str:
