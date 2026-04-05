@@ -53,9 +53,11 @@ class LeadManagerClient:
             headers["X-API-Key"] = self._settings.lead_manager_api_key
         if config.lead_manager_page_id:
             bridge = self._meta_integration.get_runtime_page_bridge(config.lead_manager_page_id)
+            secret = str(bridge.get("bridge_secret") or "").strip()
             secret_id = str(bridge.get("qualifier_bridge_secret_id") or "").strip()
-            if secret_id:
+            if not secret and secret_id:
                 secret = self._meta_integration.read_bridge_secret(secret_id)
+            if secret:
                 timestamp = str(int(time.time()))
                 headers["X-Gelo-Bridge-Timestamp"] = timestamp
                 headers["X-Gelo-Bridge-Signature"] = build_bridge_signature(
@@ -65,13 +67,20 @@ class LeadManagerClient:
                 )
 
         response = httpx.post(
-            self._settings.lead_manager_api_url,
+            _lead_manager_custom_leads_url(self._settings.lead_manager_api_url),
             content=serialized_payload.encode("utf-8"),
             headers=headers,
             timeout=30.0,
         )
         response.raise_for_status()
         return response.json()
+
+
+def _lead_manager_custom_leads_url(configured_url: str) -> str:
+    normalized = configured_url.rstrip("/")
+    if normalized.endswith("/api/leads/custom"):
+        return normalized
+    return f"{normalized}/api/leads/custom"
 
 
 def _normalize_phone(wa_id: str) -> str:

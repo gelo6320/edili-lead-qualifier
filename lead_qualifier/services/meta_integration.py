@@ -198,6 +198,12 @@ class MetaIntegrationService:
         }
 
     def list_page_options(self, owner_user_id: str) -> list[dict[str, str]]:
+        if self._settings.lead_manager_api_url:
+            try:
+                return self._list_page_options_via_lead_manager(owner_user_id)
+            except MetaIntegrationError:
+                if not self._admin.is_configured:
+                    raise
         if not self._admin.is_configured:
             return []
         try:
@@ -247,6 +253,14 @@ class MetaIntegrationService:
         return options
 
     def assign_page_to_bot(self, *, owner_user_id: str, page_id: str, bot_id: str, bot_name: str) -> None:
+        if self._settings.lead_manager_api_url:
+            self._assign_page_to_bot_via_lead_manager(
+                owner_user_id=owner_user_id,
+                page_id=page_id,
+                bot_id=bot_id,
+                bot_name=bot_name,
+            )
+            return
         try:
             self._admin.rpc(
                 "assign_meta_page_qualifier",
@@ -263,6 +277,12 @@ class MetaIntegrationService:
             raise MetaIntegrationError(str(exc)) from exc
 
     def clear_page_assignment(self, *, owner_user_id: str, page_id: str) -> None:
+        if self._settings.lead_manager_api_url:
+            self._clear_page_assignment_via_lead_manager(
+                owner_user_id=owner_user_id,
+                page_id=page_id,
+            )
+            return
         try:
             self._admin.rpc(
                 "clear_meta_page_qualifier",
@@ -277,6 +297,12 @@ class MetaIntegrationService:
             raise MetaIntegrationError(str(exc)) from exc
 
     def get_runtime_page_bridge(self, page_id: str) -> dict[str, Any]:
+        if self._settings.lead_manager_api_url:
+            try:
+                return self._get_runtime_page_bridge_via_lead_manager(page_id)
+            except MetaIntegrationError:
+                if not self._admin.is_configured:
+                    raise
         if not self._admin.is_configured:
             return {}
         try:
@@ -299,6 +325,110 @@ class MetaIntegrationService:
 
     def read_bridge_secret(self, secret_id: str) -> str:
         return self._read_secret(secret_id)
+
+    def _lead_manager_request(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        json_body: Any = None,
+    ) -> Any:
+        base_url = _lead_manager_base_url(self._settings.lead_manager_api_url)
+        if not base_url:
+            raise MetaIntegrationError("LEAD_MANAGER_API_URL non configurato.")
+        headers = {"Content-Type": "application/json"}
+        if self._settings.lead_manager_api_key:
+            headers["X-API-Key"] = self._settings.lead_manager_api_key
+
+        url = f"{base_url.rstrip('/')}{path}"
+        try:
+            response = httpx.request(
+                method,
+                url,
+                headers=headers,
+                params=params,
+                json=json_body,
+                timeout=30.0,
+            )
+        except httpx.HTTPError as exc:
+            raise MetaIntegrationError(str(exc)) from exc
+
+        if response.status_code == 204:
+            return None
+
+        try:
+            payload: Any = response.json()
+        except ValueError:
+            payload = {"raw": response.text}
+
+        if not response.is_success:
+            raise MetaIntegrationError(str(payload))
+        return payload
+
+    def _list_page_options_via_lead_manager(self, owner_user_id: str) -> list[dict[str, str]]:
+        payload = self._lead_manager_request(
+            "GET",
+            "/api/internal/qualifier/pages",
+            params={"owner_user_id": owner_user_id},
+        )
+        if not isinstance(payload, list):
+            raise MetaIntegrationError("Risposta lead-manager non valida.")
+        return [
+            {
+                "id": _clean(item.get("id")),
+                "name": _clean(item.get("name")) or _clean(item.get("id")),
+                "is_active": _clean(item.get("is_active")) or "false",
+                "qualifier_bot_id": _clean(item.get("qualifier_bot_id")),
+                "qualifier_bot_name": _clean(item.get("qualifier_bot_name")),
+            }
+            for item in payload
+            if isinstance(item, dict) and _clean(item.get("id"))
+        ]
+
+    def _assign_page_to_bot_via_lead_manager(
+        self,
+        *,
+        owner_user_id: str,
+        page_id: str,
+        bot_id: str,
+        bot_name: str,
+    ) -> None:
+        self._lead_manager_request(
+            "POST",
+            "/api/internal/qualifier/assignment",
+            json_body={
+                "owner_user_id": owner_user_id,
+                "page_id": page_id,
+                "bot_id": bot_id,
+                "bot_name": bot_name,
+            },
+        )
+
+    def _clear_page_assignment_via_lead_manager(
+        self,
+        *,
+        owner_user_id: str,
+        page_id: str,
+    ) -> None:
+        self._lead_manager_request(
+            "POST",
+            "/api/internal/qualifier/assignment",
+            json_body={
+                "owner_user_id": owner_user_id,
+                "page_id": page_id,
+            },
+        )
+
+    def _get_runtime_page_bridge_via_lead_manager(self, page_id: str) -> dict[str, Any]:
+        payload = self._lead_manager_request(
+            "GET",
+            "/api/internal/qualifier/page-bridge",
+            params={"page_id": page_id},
+        )
+        if isinstance(payload, dict):
+            return payload
+        raise MetaIntegrationError("Risposta bridge lead-manager non valida.")
 
     def _exchange_code_for_token(self, code: str) -> dict[str, Any]:
         callback_url = f"{self._settings.app_base_url}/api/dashboard/meta/oauth/callback"
@@ -549,3 +679,10 @@ def _extract_rpc_scalar(payload: Any, key: str) -> str:
     if isinstance(payload, dict):
         return _clean(payload.get(key))
     return _clean(payload)
+
+
+def _lead_manager_base_url(configured_url: str) -> str:
+    normalized = _clean(configured_url).rstrip("/")
+    if normalized.endswith("/api/leads/custom"):
+        return normalized[: -len("/api/leads/custom")]
+    return normalized

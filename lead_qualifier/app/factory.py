@@ -89,7 +89,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(build_webhook_router(settings, message_service))
     app.include_router(build_admin_router(settings, outbound_service))
-    app.include_router(build_internal_router(meta_integration, outbound_service))
+    app.include_router(build_internal_router(settings, config_store, meta_integration, outbound_service))
     app.include_router(
         build_dashboard_api_router(
             settings,
