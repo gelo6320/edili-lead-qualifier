@@ -167,6 +167,64 @@ class OutboundMessageService:
         )
         self._store.save_lead_state(bot_id, wa_id, lead_state)
 
+    def _hydrate_default_template_context(
+        self,
+        config: BotConfig,
+        *,
+        access_token: str,
+        template_name: str,
+        language_code: str,
+    ) -> BotConfig:
+        if not config.meta_waba_id.strip():
+            return config
+
+        try:
+            templates = self._whatsapp_client.list_message_templates(
+                waba_id=config.meta_waba_id,
+                access_token=access_token,
+            )
+        except Exception as exc:
+            LOGGER.warning(
+                "Unable to hydrate template context for bot=%s template=%s: %s",
+                config.id,
+                template_name,
+                exc,
+            )
+            return config
+
+        match = _match_meta_template(
+            templates,
+            template_name=template_name,
+            language_code=language_code,
+        )
+        if match is None:
+            return config
+
+        next_body = str(match.get("body_text", "")).strip()
+        next_id = str(match.get("id", "")).strip()
+        next_language = str(match.get("language", "")).strip() or config.template_language
+        next_variable_count = max(int(match.get("body_variable_count") or 0), 0)
+
+        if (
+            config.default_template_id == next_id
+            and config.default_template_name == template_name.strip()
+            and config.default_template_body_text == next_body
+            and config.default_template_variable_count == next_variable_count
+            and config.template_language == next_language
+        ):
+            return config
+
+        updated = config.model_copy(
+            update={
+                "default_template_id": next_id,
+                "default_template_name": template_name.strip(),
+                "default_template_body_text": next_body,
+                "default_template_variable_count": next_variable_count,
+                "template_language": next_language,
+            }
+        )
+        return self._config_store.upsert(updated)
+
     @staticmethod
     def _validate_template_parameters(
         *,
@@ -234,4 +292,27 @@ def _matches_default_template(config, *, template_name: str) -> bool:
     return template_name.strip() == (config.default_template_name or "").strip()
 
 
-    
+def _match_meta_template(
+    templates: list[dict[str, Any]],
+    *,
+    template_name: str,
+    language_code: str,
+) -> dict[str, Any] | None:
+    normalized_name = template_name.strip()
+    normalized_language = language_code.strip().lower()
+
+    for template in templates:
+        if str(template.get("status", "")).strip().upper() != "APPROVED":
+            continue
+        if str(template.get("name", "")).strip() != normalized_name:
+            continue
+        if str(template.get("language", "")).strip().lower() == normalized_language:
+            return template
+
+    for template in templates:
+        if str(template.get("status", "")).strip().upper() != "APPROVED":
+            continue
+        if str(template.get("name", "")).strip() == normalized_name:
+            return template
+
+    return None
