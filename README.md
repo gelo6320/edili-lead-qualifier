@@ -185,12 +185,15 @@ File esempio:
 ### Lead manager
 
 `LEAD_MANAGER_API_URL`
-- endpoint del lead manager, ad esempio `https://.../api/leads/custom`
+- URL pubblico del servizio lead-manager
+- accetta sia la base URL `https://...` sia l'endpoint completo `https://.../api/leads/custom`
+- il qualifier usa questa URL sia per `POST /api/leads/custom` sia per le API interne `/api/internal/qualifier/*`
 
 `LEAD_MANAGER_API_KEY`
 - opzionale
 - inviato come header `X-API-Key` se valorizzato
-- non serve quando il lead manager accetta il bridge HMAC firmato con secret condiviso in Vault
+- se mantieni `lead-manager` e `lead-qualifier` su Supabase separati, deve avere lo stesso valore di `CUSTOM_LEADS_API_KEY` sul servizio `lead-manager`
+- viene usato sia per `POST /api/leads/custom` sia per le API interne che espongono pagine/bridge del manager al qualifier
 
 ### Cloudflare crawl + RAG
 

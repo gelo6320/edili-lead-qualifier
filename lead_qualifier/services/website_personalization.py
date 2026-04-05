@@ -7,7 +7,7 @@ from anthropic import Anthropic
 
 from lead_qualifier.core.settings import Settings
 from lead_qualifier.domain.bot_config import BotConfig
-from lead_qualifier.services.cloudflare_crawl import CloudflareCrawlClient
+from lead_qualifier.services.cloudflare_crawl import CloudflareCrawlClient, CloudflareCrawlError
 from lead_qualifier.services.knowledge_base import KnowledgeBaseService
 
 
@@ -38,7 +38,10 @@ class WebsitePersonalizationService:
         owner_user_id: str,
         site_url: str,
     ) -> dict[str, Any]:
-        pages = self._crawl_client.crawl_markdown_site(site_url)
+        try:
+            pages = self._crawl_client.crawl_markdown_site(site_url)
+        except CloudflareCrawlError as exc:
+            raise WebsitePersonalizationError(str(exc)) from exc
         if not pages:
             raise WebsitePersonalizationError("Il crawl non ha prodotto contenuti utili.")
 

@@ -134,5 +134,12 @@ class CloudflareCrawlClient:
             payload = {"success": False, "errors": [response.text]}
 
         if not response.is_success or payload.get("success") is False:
-            raise CloudflareCrawlError(str(payload.get("errors") or payload))
+            errors = payload.get("errors") or payload
+            if response.status_code in {401, 403}:
+                raise CloudflareCrawlError(
+                    "Autenticazione Cloudflare Browser Rendering fallita. "
+                    "Verifica che CLOUDFLARE_API_TOKEN appartenga allo stesso account di "
+                    "CLOUDFLARE_ACCOUNT_ID e abbia il permesso 'Browser Rendering - Edit'."
+                )
+            raise CloudflareCrawlError(str(errors))
         return payload
