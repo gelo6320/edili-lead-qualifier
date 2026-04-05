@@ -1,12 +1,4 @@
-import {
-  Globe,
-  Link2,
-  RefreshCw,
-  Save,
-  ShieldCheck,
-  Trash2,
-} from 'lucide-react'
-
+import { useEffect } from 'react'
 import { FieldListEditor } from '@/features/bots/components/field-list-editor'
 import {
   commaSeparatedToList,
@@ -74,6 +66,32 @@ function getSelectedWaba(
   return metaAssets.waba_options.find((item) => item.id === bot.meta_waba_id) ?? null
 }
 
+function matchTemplate(bot: BotConfig, templateOptions: MetaWabaOption['templates']) {
+  if (bot.default_template_id.trim()) {
+    const byId = templateOptions.find((item) => item.id === bot.default_template_id)
+    if (byId) {
+      return byId
+    }
+  }
+
+  const templateName = bot.default_template_name.trim()
+  if (!templateName) {
+    return null
+  }
+
+  const templateLanguage = bot.template_language.trim().toLowerCase()
+  const byNameAndLanguage = templateOptions.find(
+    (item) =>
+      item.name === templateName &&
+      item.language.trim().toLowerCase() === templateLanguage,
+  )
+  if (byNameAndLanguage) {
+    return byNameAndLanguage
+  }
+
+  return templateOptions.find((item) => item.name === templateName) ?? null
+}
+
 function getSelectedPage(
   bot: BotConfig,
   metaAssets: MetaAssetsPayload,
@@ -112,8 +130,7 @@ export function BotEditor({
   const selectedPage = getSelectedPage(bot, metaAssets)
   const phoneOptions = selectedWaba?.phone_numbers ?? []
   const templateOptions = selectedWaba?.templates ?? []
-  const selectedTemplate =
-    templateOptions.find((item) => item.id === bot.default_template_id) ?? null
+  const selectedTemplate = matchTemplate(bot, templateOptions)
   const selectedTemplateBody = selectedTemplate?.body_text || bot.default_template_body_text
   const hasPageOptions = metaAssets.page_options.length > 0
 
@@ -124,6 +141,40 @@ export function BotEditor({
   function patchMany(nextPatch: Partial<BotConfig>) {
     onChange({ ...bot, ...nextPatch })
   }
+
+  useEffect(() => {
+    if (!selectedTemplate) {
+      return
+    }
+
+    const nextPatch: Partial<BotConfig> = {}
+    if (bot.default_template_id !== selectedTemplate.id) {
+      nextPatch.default_template_id = selectedTemplate.id
+    }
+    if (bot.default_template_name !== selectedTemplate.name) {
+      nextPatch.default_template_name = selectedTemplate.name
+    }
+    if (bot.default_template_body_text !== selectedTemplate.body_text) {
+      nextPatch.default_template_body_text = selectedTemplate.body_text
+    }
+    if (bot.default_template_variable_count !== selectedTemplate.body_variable_count) {
+      nextPatch.default_template_variable_count = selectedTemplate.body_variable_count
+    }
+    if (bot.template_language !== selectedTemplate.language) {
+      nextPatch.template_language = selectedTemplate.language
+    }
+
+    if (Object.keys(nextPatch).length > 0) {
+      patchMany(nextPatch)
+    }
+  }, [
+    bot.default_template_body_text,
+    bot.default_template_id,
+    bot.default_template_name,
+    bot.default_template_variable_count,
+    bot.template_language,
+    selectedTemplate,
+  ])
 
   function handleWabaChange(wabaId: string) {
     if (!wabaId) {
@@ -150,8 +201,7 @@ export function BotEditor({
 
     const nextPhone =
       nextWaba.phone_numbers.find((item) => item.id === bot.phone_number_id) ?? null
-    const nextTemplate =
-      nextWaba.templates.find((item) => item.id === bot.default_template_id) ?? null
+    const nextTemplate = matchTemplate(bot, nextWaba.templates)
 
     patchMany({
       meta_business_id: nextWaba.business_id,
@@ -222,12 +272,11 @@ export function BotEditor({
           {!isNew ? (
             <Button
               variant="destructive"
-              className="gap-1.5 rounded-xl"
+              className="rounded-xl"
               onClick={onDelete}
               disabled={isDeleting}
               type="button"
             >
-              <Trash2 className="h-3.5 w-3.5" />
               {isDeleting ? 'Eliminazione...' : 'Elimina'}
             </Button>
           ) : null}
@@ -235,10 +284,9 @@ export function BotEditor({
           <Button
             onClick={onSave}
             disabled={isSaving}
-            className="gap-1.5 rounded-xl shadow-sm shadow-primary/20"
+            className="rounded-xl shadow-sm shadow-primary/20"
             type="button"
           >
-            <Save className="h-3.5 w-3.5" />
             {isSaving ? 'Salvataggio...' : 'Salva'}
           </Button>
         </div>
@@ -247,10 +295,7 @@ export function BotEditor({
       <section className="grid gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="grid gap-1">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-semibold">Connessione Meta e routing lead</h2>
-            </div>
+            <h2 className="text-sm font-semibold">Connessione Meta e routing lead</h2>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -265,11 +310,10 @@ export function BotEditor({
             <Button
               type="button"
               variant={metaAssets.connected ? 'outline' : 'default'}
-              className="gap-2 rounded-xl"
+              className="rounded-xl"
               onClick={onConnectMeta}
               disabled={isConnectingMeta}
             >
-              <Link2 className="h-3.5 w-3.5" />
               {isConnectingMeta
                 ? 'Reindirizzamento...'
                 : metaAssets.connected
@@ -281,11 +325,10 @@ export function BotEditor({
           <Button
             type="button"
             variant="outline"
-            className="gap-2 rounded-xl"
+            className="rounded-xl"
             onClick={onReloadMetaAssets}
             disabled={isLoadingMetaAssets}
           >
-            <RefreshCw className={isLoadingMetaAssets ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />
             {isLoadingMetaAssets ? 'Aggiornamento...' : 'Ricarica asset'}
           </Button>
         </div>
@@ -356,7 +399,7 @@ export function BotEditor({
             <select
               id="meta-template"
               className={SELECT_CLASS_NAME}
-              value={bot.default_template_id}
+              value={selectedTemplate?.id ?? bot.default_template_id}
               onChange={(event) => handleTemplateChange(event.target.value)}
               disabled={!selectedWaba}
             >
@@ -518,15 +561,13 @@ export function BotEditor({
                 !bot.website_url.trim()
               }
             >
-              <Globe className={isCrawlingSite ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />
               {isCrawlingSite ? 'Analisi in corso...' : 'Crawl + knowledge'}
             </Button>
           </div>
         </div>
 
         <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground sm:col-span-2 xl:col-span-3">
-          <div className="flex items-center gap-2 font-semibold text-foreground">
-            <Globe className="h-4 w-4 text-primary" />
+          <div className="font-semibold text-foreground">
             Sito + RAG
           </div>
           {!cloudflareCrawlEnabled ? (

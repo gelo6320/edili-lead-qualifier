@@ -1,5 +1,3 @@
-import { Bot, Plus } from 'lucide-react'
-
 import { cn } from '@/shared/lib/utils'
 import type { BotConfig } from '@/shared/lib/types'
 import { Button } from '@/shared/ui/button'
@@ -29,15 +27,9 @@ export function BotList({
     <Card className="border-border/60 shadow-sm">
       <CardHeader className="border-b">
         <div className="flex items-center justify-between gap-3">
-          <CardTitle className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-              <Bot className="h-4 w-4 text-primary" />
-            </div>
-            Bot
-          </CardTitle>
-          <Button size="sm" onClick={onCreate} className="gap-1.5 rounded-xl">
-            <Plus className="h-3.5 w-3.5" />
-            Nuovo
+          <CardTitle>Bot</CardTitle>
+          <Button size="sm" onClick={onCreate} className="rounded-xl">
+            + Nuovo
           </Button>
         </div>
       </CardHeader>
@@ -52,7 +44,6 @@ export function BotList({
 
         {!loading && bots.length === 0 ? (
           <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-            <Bot className="mx-auto mb-2 h-8 w-8 opacity-30" />
             <p className="font-medium">Nessun bot</p>
           </div>
         ) : null}
@@ -74,11 +65,11 @@ export function BotList({
               <div className="flex items-start gap-3">
                 <div
                   className={cn(
-                    'mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors',
+                    'mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold transition-colors',
                     isActive ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary',
                   )}
                 >
-                  <Bot className="h-4 w-4" />
+                  {(bot.name || 'B')[0].toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <div className={cn('truncate font-semibold', isActive && 'text-primary')}>

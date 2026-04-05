@@ -215,7 +215,7 @@ def build_dashboard_api_router(
             response.append(
                 {
                     "role": message.role,
-                    "display": message.display,
+                    "display": _resolve_message_display(message.display, message.api_content),
                     "images": image_urls,
                 }
             )
@@ -330,6 +330,40 @@ def _extract_message_images(api_content: str) -> tuple[list[str], int]:
     if not image_urls:
         image_urls = _extract_image_urls_from_blocks(blocks)
     return image_urls, image_block_count
+
+
+def _resolve_message_display(display: str, api_content: str) -> str:
+    try:
+        payload = json.loads(api_content)
+    except json.JSONDecodeError:
+        return display
+
+    if not isinstance(payload, dict):
+        return display
+    if payload.get("kind") != "outbound_template":
+        return display
+
+    rendered_text = str(payload.get("rendered_text", "")).strip()
+    if rendered_text:
+        return rendered_text
+
+    template_body = str(payload.get("template_body", "")).strip()
+    if not template_body:
+        return display
+
+    body_parameters = [
+        str(value).strip()
+        for value in payload.get("body_parameters", [])
+        if str(value).strip()
+    ] if isinstance(payload.get("body_parameters"), list) else []
+    return _render_template_text(template_body, body_parameters) or display
+
+
+def _render_template_text(template_body: str, body_parameters: list[str]) -> str:
+    rendered = template_body
+    for index, value in enumerate(body_parameters, start=1):
+        rendered = rendered.replace(f"{{{{{index}}}}}", value)
+    return rendered.strip()
 
 
 def _extract_image_urls_from_blocks(blocks: list[dict]) -> list[str]:

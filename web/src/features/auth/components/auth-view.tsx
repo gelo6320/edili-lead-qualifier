@@ -1,5 +1,4 @@
-import { Bot, Lock, Mail } from 'lucide-react'
-
+import { GeloLogo } from '@/shared/ui/gelo-logo'
 import { Button } from '@/shared/ui/button'
 import {
   Card,
@@ -41,7 +40,7 @@ export function AuthView({
 
           <div className="relative z-10 max-w-md px-12 text-white">
             <div className="mb-10 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm">
-              <Bot className="h-8 w-8" />
+              <GeloLogo className="h-8 w-8" />
             </div>
           </div>
         </div>
@@ -52,7 +51,7 @@ export function AuthView({
             {/* Mobile brand */}
             <div className="mb-8 flex items-center gap-3 lg:hidden">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0078ff]/10">
-                <Bot className="h-5 w-5 text-[#0078ff]" />
+                <GeloLogo className="h-5 w-5" />
               </div>
             </div>
 
@@ -70,8 +69,7 @@ export function AuthView({
                   }}
                 >
                   <div className="grid gap-2">
-                    <Label htmlFor="auth-email" className="flex items-center gap-2 text-sm font-semibold">
-                      <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Label htmlFor="auth-email" className="text-sm font-semibold">
                       Email
                     </Label>
                     <Input
@@ -86,8 +84,7 @@ export function AuthView({
                   </div>
 
                   <div className="grid gap-2">
-                    <Label htmlFor="auth-password" className="flex items-center gap-2 text-sm font-semibold">
-                      <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Label htmlFor="auth-password" className="text-sm font-semibold">
                       Password
                     </Label>
                     <Input

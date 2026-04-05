@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Bot, Trash2, User } from 'lucide-react'
+import { GeloLogo } from '@/shared/ui/gelo-logo'
 
 import {
   deleteLeadConversation,
@@ -168,8 +168,8 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                         onClick={() => setSelectedWaId(lead.wa_id)}
                       >
                       <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-muted">
-                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
+                          U
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
@@ -197,7 +197,7 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                         title="Clean chat"
                         aria-label={`Clean chat +${lead.wa_id}`}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        ✕
                       </Button>
                     </div>
                   )
@@ -226,10 +226,10 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                   className="h-7 w-7 p-0 md:hidden"
                   onClick={() => setSelectedWaId(null)}
                 >
-                  <ArrowLeft className="h-4 w-4" />
+                  ←
                 </Button>
-                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
-                  <User className="h-3.5 w-3.5 text-primary" />
+                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                  U
                 </div>
                 <div className="min-w-0 flex-1 truncate text-sm font-semibold">
                   +{selectedWaId}
@@ -249,7 +249,7 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                   title="Clean chat"
                   aria-label="Clean chat"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  ✕
                 </Button>
               </div>
 
@@ -283,9 +283,9 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                             )}
                           >
                             {msg.role === 'user' ? (
-                              <User className="h-3 w-3" />
+                              <span className="text-[9px] font-bold">U</span>
                             ) : (
-                              <Bot className="h-3 w-3" />
+                              <GeloLogo className="h-3 w-3" />
                             )}
                           </div>
                           <div

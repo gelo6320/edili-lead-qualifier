@@ -1,18 +1,4 @@
 import { useEffect, useState } from 'react'
-import {
-  Bot,
-  ChevronDown,
-  LogOut,
-  Menu,
-  MessageCircle,
-  MessageSquare,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  Settings,
-  TestTube2,
-  X,
-} from 'lucide-react'
 
 import { AuthView } from '@/features/auth/components/auth-view'
 import { BotEditor } from '@/features/bots/components/bot-editor'
@@ -51,14 +37,15 @@ import {
   CardHeader,
   CardTitle,
 } from '@/shared/ui/card'
+import { GeloLogo } from '@/shared/ui/gelo-logo'
 
 type Section = 'config' | 'template' | 'test' | 'chat'
 
-const NAV_ITEMS: { id: Section; label: string; icon: typeof Settings }[] = [
-  { id: 'config', label: 'Config', icon: Settings },
-  { id: 'template', label: 'Template', icon: MessageSquare },
-  { id: 'test', label: 'Test', icon: TestTube2 },
-  { id: 'chat', label: 'Chat', icon: MessageCircle },
+const NAV_ITEMS: { id: Section; label: string }[] = [
+  { id: 'config', label: 'Config' },
+  { id: 'template', label: 'Template' },
+  { id: 'test', label: 'Test' },
+  { id: 'chat', label: 'Chat' },
 ]
 
 const EMPTY_META_ASSETS: MetaAssetsPayload = {
@@ -563,14 +550,12 @@ function App() {
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
       <header className="flex h-14 flex-shrink-0 items-center gap-2 border-b border-border/60 bg-card/90 px-3 backdrop-blur lg:px-4">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0078ff] text-white shadow-sm shadow-[#0078ff]/20">
-            <Bot className="h-4 w-4" />
-          </div>
+          <GeloLogo className="h-7 w-7" />
 
           <Button
             variant="ghost"
             size="icon-sm"
-            className="hidden lg:flex"
+            className="hidden text-xs font-bold lg:flex"
             onClick={() => setIsSidebarCollapsed((current) => !current)}
             aria-label={
               isSidebarCollapsed
@@ -583,11 +568,7 @@ function App() {
                 : 'Comprimi sidebar'
             }
           >
-            {isSidebarCollapsed ? (
-              <PanelLeftOpen className="h-4 w-4" />
-            ) : (
-              <PanelLeftClose className="h-4 w-4" />
-            )}
+            {isSidebarCollapsed ? '\u00BB' : '\u00AB'}
           </Button>
         </div>
 
@@ -610,7 +591,7 @@ function App() {
               </option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{'\u25BE'}</span>
         </div>
 
         <div className="ml-auto flex items-center gap-1.5">
@@ -625,7 +606,7 @@ function App() {
             aria-label="Nuovo bot"
             title="Nuovo bot"
           >
-            <Plus className="h-4 w-4" />
+            <span className="text-base leading-none">+</span>
           </Button>
 
           <Button
@@ -636,21 +617,18 @@ function App() {
             aria-label={mobileNavOpen ? 'Chiudi navigazione' : 'Apri navigazione'}
             title={mobileNavOpen ? 'Chiudi navigazione' : 'Apri navigazione'}
           >
-            {mobileNavOpen ? (
-              <X className="h-4 w-4" />
-            ) : (
-              <Menu className="h-4 w-4" />
-            )}
+            <span className="text-base leading-none">{mobileNavOpen ? '\u00D7' : '\u2261'}</span>
           </Button>
 
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="sm"
+            className="text-xs"
             onClick={handleSignOut}
             aria-label="Esci"
             title="Esci"
           >
-            <LogOut className="h-4 w-4" />
+            Esci
           </Button>
         </div>
       </header>
@@ -674,14 +652,13 @@ function App() {
           <nav className="flex-1 p-2">
             {NAV_ITEMS.map((item) => {
               const isActive = activeSection === item.id
-              const Icon = item.icon
               return (
                 <button
                   key={item.id}
                   type="button"
                   className={cn(
                     'flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                    isSidebarCollapsed ? 'justify-center px-0' : 'gap-2.5',
+                    isSidebarCollapsed ? 'justify-center px-2' : 'gap-2.5',
                     isActive
                       ? 'bg-primary/[0.08] text-primary'
                       : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
@@ -693,10 +670,7 @@ function App() {
                   aria-label={item.label}
                   title={item.label}
                 >
-                  <Icon className="h-4 w-4 flex-shrink-0" />
-                  {!isSidebarCollapsed ? (
-                    <span className="truncate">{item.label}</span>
-                  ) : null}
+                  <span className="truncate">{isSidebarCollapsed ? item.label.charAt(0) : item.label}</span>
                 </button>
               )
             })}

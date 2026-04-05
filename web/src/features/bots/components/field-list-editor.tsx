@@ -1,5 +1,3 @@
-import { Plus, Trash2 } from 'lucide-react'
-
 import {
   commaSeparatedToList,
   createEmptyField,
@@ -49,9 +47,8 @@ export function FieldListEditor({ bot, onChange }: FieldListEditorProps) {
         <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
           {bot.fields.length} campi
         </span>
-        <Button size="sm" type="button" onClick={addField} className="gap-1.5 rounded-xl">
-          <Plus className="h-3.5 w-3.5" />
-          Aggiungi
+        <Button size="sm" type="button" onClick={addField} className="rounded-xl">
+          + Aggiungi
         </Button>
       </div>
 
@@ -73,7 +70,7 @@ export function FieldListEditor({ bot, onChange }: FieldListEditorProps) {
                 onClick={() => removeField(index)}
                 disabled={bot.fields.length === 1}
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                ✕
               </Button>
             </div>
 

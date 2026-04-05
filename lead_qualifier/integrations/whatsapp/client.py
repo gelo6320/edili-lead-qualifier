@@ -220,6 +220,66 @@ class WhatsAppCloudClient:
 
         return response.content, str(response.headers.get("Content-Type") or "").strip()
 
+    def list_message_templates(
+        self,
+        *,
+        waba_id: str,
+        access_token: str | None = None,
+    ) -> list[dict[str, Any]]:
+        if not (access_token or self._settings.whatsapp_access_token):
+            raise RuntimeError("Token WhatsApp non configurato.")
+        cleaned_waba_id = str(waba_id or "").strip()
+        if not cleaned_waba_id:
+            raise RuntimeError("waba_id non valido.")
+
+        url = (
+            f"{self._settings.whatsapp_api_base_url}/"
+            f"{self._settings.whatsapp_graph_version}/"
+            f"{cleaned_waba_id}/message_templates"
+        )
+        params: dict[str, Any] | None = {
+            "fields": "id,name,language,status,category,components",
+            "limit": 200,
+        }
+        templates: list[dict[str, Any]] = []
+
+        while url:
+            try:
+                response = httpx.get(
+                    url,
+                    headers=self._headers(access_token),
+                    params=params,
+                    timeout=self._settings.http_timeout_seconds,
+                )
+            except httpx.HTTPError as exc:
+                raise WhatsAppCloudError(str(exc), status_code=502) from exc
+
+            data = _parse_json(response)
+            _raise_for_error(response, data)
+            if not isinstance(data, dict):
+                raise WhatsAppCloudError("Risposta template Meta non valida.", status_code=502)
+
+            for item in data.get("data", []):
+                if not isinstance(item, dict):
+                    continue
+                templates.append(
+                    {
+                        "id": _clean(item.get("id")),
+                        "name": _clean(item.get("name")),
+                        "language": _clean(item.get("language")) or "it",
+                        "status": _clean(item.get("status")).upper(),
+                        "category": _clean(item.get("category")),
+                        "body_text": _extract_template_body_text(item.get("components")),
+                        "body_variable_count": _infer_template_variable_count(item.get("components")),
+                    }
+                )
+
+            next_url = data.get("paging", {}).get("next")
+            url = str(next_url or "").strip()
+            params = None
+
+        return templates
+
 
 def _format_meta_error(payload: object, status_code: int) -> str:
     if isinstance(payload, dict):
@@ -239,3 +299,40 @@ def _format_meta_error(payload: object, status_code: int) -> str:
             return detail
 
     return f"Errore Meta HTTP {status_code}."
+
+
+def _clean(value: object) -> str:
+    return str(value or "").strip()
+
+
+def _extract_template_body_text(components: object) -> str:
+    if not isinstance(components, list):
+        return ""
+    for component in components:
+        if not isinstance(component, dict):
+            continue
+        if _clean(component.get("type")).upper() != "BODY":
+            continue
+        return _clean(component.get("text"))
+    return ""
+
+
+def _infer_template_variable_count(components: object) -> int:
+    body_text = _extract_template_body_text(components)
+    if not body_text:
+        return 0
+
+    max_placeholder = 0
+    cursor = 0
+    while cursor < len(body_text):
+        start = body_text.find("{{", cursor)
+        if start < 0:
+            break
+        end = body_text.find("}}", start + 2)
+        if end < 0:
+            break
+        token = body_text[start + 2 : end].strip()
+        if token.isdigit():
+            max_placeholder = max(max_placeholder, int(token))
+        cursor = end + 2
+    return max_placeholder

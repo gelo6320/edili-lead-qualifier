@@ -43,6 +43,7 @@ class BotConfigStore:
                 },
             )
             self._pool.wait()
+            self._ensure_runtime_columns()
             self._refresh_db_columns()
             self._bootstrap_from_files_if_needed()
 
@@ -176,6 +177,35 @@ class BotConfigStore:
         if self._db_columns and (time.time() - self._db_columns_loaded_at) < max_age_seconds:
             return
         self._refresh_db_columns()
+
+    def _ensure_runtime_columns(self) -> None:
+        if self._pool is None:
+            return
+
+        with self._pool.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    ALTER TABLE IF EXISTS {self._table}
+                        ADD COLUMN IF NOT EXISTS default_template_id text NOT NULL DEFAULT ''
+                    """
+                )
+                cursor.execute(
+                    f"""
+                    ALTER TABLE IF EXISTS {self._table}
+                        ADD COLUMN IF NOT EXISTS default_template_body_text text NOT NULL DEFAULT ''
+                    """
+                )
+                cursor.execute(
+                    f"""
+                    UPDATE {self._table}
+                    SET
+                        default_template_id = COALESCE(default_template_id, ''),
+                        default_template_body_text = COALESCE(default_template_body_text, '')
+                    WHERE default_template_id IS NULL
+                       OR default_template_body_text IS NULL
+                    """
+                )
 
     def _bootstrap_from_files_if_needed(self) -> None:
         if self._pool is None:

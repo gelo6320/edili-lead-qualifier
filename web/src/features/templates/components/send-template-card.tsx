@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Send } from 'lucide-react'
-
 import type { BotConfig, TemplateTestRequest } from '@/shared/lib/types'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
@@ -186,7 +184,6 @@ export function SendTemplateCard({
           onClick={submit}
           disabled={!to.trim() || !templateName.trim() || pending || hasMissingTemplateValue}
         >
-          <Send className="h-3.5 w-3.5" />
           {pending ? 'Invio...' : 'Invia test'}
         </Button>
       </div>

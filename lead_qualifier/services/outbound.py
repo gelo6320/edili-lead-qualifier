@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
+from lead_qualifier.domain.bot_config import BotConfig
 from lead_qualifier.domain.lead import StoredMessage
 from lead_qualifier.integrations.whatsapp.client import WhatsAppCloudClient
 from lead_qualifier.services.lead_state import build_empty_lead_state, with_initial_template
@@ -12,6 +14,7 @@ from lead_qualifier.storage.protocol import LeadStore
 
 
 TEMPLATE_PLACEHOLDER_PATTERN = re.compile(r"\{\{(\d+)\}\}")
+LOGGER = logging.getLogger(__name__)
 
 
 class OutboundMessageService:
@@ -39,7 +42,14 @@ class OutboundMessageService:
         config = self._config_store.require(bot_id)
         access_token = self._runtime_credentials.get_whatsapp_access_token(config)
         resolved_language = language_code or config.template_language
-        is_default_template = template_name.strip() == (config.default_template_name or "").strip()
+        is_default_template = _matches_default_template(config, template_name=template_name)
+        if is_default_template and not config.default_template_body_text.strip():
+            config = self._hydrate_default_template_context(
+                config,
+                access_token=access_token,
+                template_name=template_name,
+                language_code=resolved_language,
+            )
         template_body = config.default_template_body_text if is_default_template else ""
         template_id = config.default_template_id if is_default_template else ""
         rendered_text = _render_template_body(template_body, body_parameters)
@@ -218,3 +228,10 @@ def _render_template_body(template_body: str, body_parameters: list[str]) -> str
         return match.group(0)
 
     return TEMPLATE_PLACEHOLDER_PATTERN.sub(replace_placeholder, cleaned_body).strip()
+
+
+def _matches_default_template(config, *, template_name: str) -> bool:
+    return template_name.strip() == (config.default_template_name or "").strip()
+
+
+    
