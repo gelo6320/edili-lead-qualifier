@@ -70,7 +70,7 @@ class LeadManagerClient:
             _lead_manager_custom_leads_url(self._settings.lead_manager_api_url),
             content=serialized_payload.encode("utf-8"),
             headers=headers,
-            timeout=30.0,
+            timeout=self._settings.http_timeout_seconds,
         )
         response.raise_for_status()
         return response.json()

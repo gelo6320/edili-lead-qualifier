@@ -11,7 +11,6 @@ from lead_qualifier.api.schemas import (
     TemplateSendRequest,
     TemplateTestRequest,
 )
-from lead_qualifier.domain.bot_config import BotConfig
 from lead_qualifier.core.settings import Settings
 from lead_qualifier.domain.bot_config import BotConfig
 from lead_qualifier.integrations.whatsapp.client import WhatsAppCloudError

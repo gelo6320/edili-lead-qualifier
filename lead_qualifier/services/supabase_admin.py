@@ -50,7 +50,7 @@ class SupabaseAdminClient:
                 headers=headers,
                 json=json_body,
                 params=params,
-                timeout=30.0,
+                timeout=self._settings.http_timeout_seconds,
             )
         except httpx.HTTPError as exc:
             raise SupabaseAdminError(str(exc)) from exc

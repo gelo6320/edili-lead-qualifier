@@ -176,7 +176,7 @@ class LeadMediaService:
                 f"{base_url}/storage/v1/object/{MEDIA_BUCKET_NAME}/{object_path}",
                 headers=headers,
                 content=payload,
-                timeout=30.0,
+                timeout=self._settings.http_timeout_seconds,
             )
         except httpx.HTTPError as exc:
             raise LeadMediaError(str(exc)) from exc
@@ -212,7 +212,7 @@ class LeadMediaService:
                 f"{base_url}/storage/v1/bucket",
                 headers=headers,
                 json=body,
-                timeout=30.0,
+                timeout=self._settings.http_timeout_seconds,
             )
         except httpx.HTTPError as exc:
             raise LeadMediaError(str(exc)) from exc

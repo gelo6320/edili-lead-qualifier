@@ -52,6 +52,7 @@ class Settings:
     lead_manager_api_key: str
     cloudflare_account_id: str
     cloudflare_api_token: str
+    http_timeout_seconds: float
     cloudflare_crawl_timeout_seconds: float
     sqlite_path: str
     log_level: str
@@ -103,6 +104,7 @@ class Settings:
             lead_manager_api_key=os.getenv("LEAD_MANAGER_API_KEY", "").strip(),
             cloudflare_account_id=os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip(),
             cloudflare_api_token=os.getenv("CLOUDFLARE_API_TOKEN", "").strip(),
+            http_timeout_seconds=max(float(os.getenv("HTTP_TIMEOUT_SECONDS", "30")), 5.0),
             cloudflare_crawl_timeout_seconds=max(
                 float(os.getenv("CLOUDFLARE_CRAWL_TIMEOUT_SECONDS", "90")),
                 10.0,

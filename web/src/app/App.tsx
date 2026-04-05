@@ -194,27 +194,34 @@ function App() {
       setMetaAssetsError('')
       setCrawlNotice('')
       setCrawlError('')
+      setIsLoadingMetaAssets(false)
       return
     }
 
     let active = true
-    async function loadDashboard() {
+    async function loadAll() {
       setIsLoadingDashboard(true)
+      setIsLoadingMetaAssets(true)
       setDashboardError('')
+      setMetaAssetsError('')
 
-      try {
-        const [sessionPayload, botList] = await Promise.all([
+      const [dashboardResult, assetsResult] = await Promise.allSettled([
+        Promise.all([
           getDashboardSession(accessToken),
           listBots(accessToken),
-        ])
-        if (!active) return
+        ]),
+        getMetaAssets(accessToken),
+      ])
 
+      if (!active) return
+
+      if (dashboardResult.status === 'fulfilled') {
+        const [sessionPayload, botList] = dashboardResult.value
         setUser(sessionPayload.user)
         setBots(botList)
         syncSelection(botList, selectedBotId)
-      } catch (error) {
-        if (!active) return
-
+      } else {
+        const error = dashboardResult.reason
         const message =
           error instanceof DashboardApiError
             ? error.detail
@@ -228,53 +235,29 @@ function App() {
         ) {
           await supabase.auth.signOut()
         }
-      } finally {
-        if (active) setIsLoadingDashboard(false)
       }
-    }
 
-    void loadDashboard()
-
-    return () => {
-      active = false
-    }
-  }, [accessToken, supabase])
-
-  useEffect(() => {
-    if (!accessToken) {
-      setMetaAssets(EMPTY_META_ASSETS)
-      setMetaAssetsError('')
-      setIsLoadingMetaAssets(false)
-      return
-    }
-
-    let active = true
-    async function loadAssets() {
-      setIsLoadingMetaAssets(true)
-      setMetaAssetsError('')
-
-      try {
-        const assets = await getMetaAssets(accessToken)
-        if (!active) return
-        setMetaAssets(assets)
-      } catch (error) {
-        if (!active) return
+      if (assetsResult.status === 'fulfilled') {
+        setMetaAssets(assetsResult.value)
+      } else {
+        const error = assetsResult.reason
         setMetaAssetsError(
           error instanceof DashboardApiError
             ? error.detail
             : 'Impossibile caricare asset Meta.',
         )
-      } finally {
-        if (active) setIsLoadingMetaAssets(false)
       }
+
+      setIsLoadingDashboard(false)
+      setIsLoadingMetaAssets(false)
     }
 
-    void loadAssets()
+    void loadAll()
 
     return () => {
       active = false
     }
-  }, [accessToken])
+  }, [accessToken, supabase])
 
   useEffect(() => {
     if (!accessToken || typeof window === 'undefined') {

@@ -15,6 +15,23 @@ class WhatsAppCloudError(RuntimeError):
         self.payload = payload or {}
 
 
+def _parse_json(response: httpx.Response) -> Any:
+    try:
+        return response.json()
+    except ValueError:
+        return {"raw": response.text}
+
+
+def _raise_for_error(response: httpx.Response, data: Any) -> None:
+    if response.is_success:
+        return
+    raise WhatsAppCloudError(
+        _format_meta_error(data, response.status_code),
+        status_code=response.status_code,
+        payload=data if isinstance(data, dict) else {"response": data},
+    )
+
+
 class WhatsAppCloudClient:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
@@ -56,22 +73,13 @@ class WhatsAppCloudClient:
                 self._build_endpoint(phone_number_id),
                 headers=self._headers(access_token),
                 json=payload,
-                timeout=30.0,
+                timeout=self._settings.http_timeout_seconds,
             )
         except httpx.HTTPError as exc:
             raise WhatsAppCloudError(str(exc), status_code=502) from exc
 
-        try:
-            data = response.json()
-        except ValueError:
-            data = {"raw": response.text}
-
-        if not response.is_success:
-            raise WhatsAppCloudError(
-                _format_meta_error(data, response.status_code),
-                status_code=response.status_code,
-                payload=data if isinstance(data, dict) else {"response": data},
-            )
+        data = _parse_json(response)
+        _raise_for_error(response, data)
 
         if isinstance(data, dict):
             return data
@@ -170,22 +178,13 @@ class WhatsAppCloudClient:
             response = httpx.get(
                 self._build_media_endpoint(cleaned_media_id),
                 headers=self._headers(access_token),
-                timeout=30.0,
+                timeout=self._settings.http_timeout_seconds,
             )
         except httpx.HTTPError as exc:
             raise WhatsAppCloudError(str(exc), status_code=502) from exc
 
-        try:
-            data = response.json()
-        except ValueError:
-            data = {"raw": response.text}
-
-        if not response.is_success:
-            raise WhatsAppCloudError(
-                _format_meta_error(data, response.status_code),
-                status_code=response.status_code,
-                payload=data if isinstance(data, dict) else {"response": data},
-            )
+        data = _parse_json(response)
+        _raise_for_error(response, data)
         if not isinstance(data, dict):
             raise WhatsAppCloudError("Risposta media Meta non valida.", status_code=502)
         return data
@@ -206,20 +205,17 @@ class WhatsAppCloudClient:
             response = httpx.get(
                 cleaned_url,
                 headers=self._headers(access_token),
-                timeout=30.0,
+                timeout=self._settings.http_timeout_seconds,
             )
         except httpx.HTTPError as exc:
             raise WhatsAppCloudError(str(exc), status_code=502) from exc
 
         if not response.is_success:
-            try:
-                payload: Any = response.json()
-            except ValueError:
-                payload = {"raw": response.text}
+            data = _parse_json(response)
             raise WhatsAppCloudError(
-                _format_meta_error(payload, response.status_code),
+                _format_meta_error(data, response.status_code),
                 status_code=response.status_code,
-                payload=payload if isinstance(payload, dict) else {"response": payload},
+                payload=data if isinstance(data, dict) else {"response": data},
             )
 
         return response.content, str(response.headers.get("Content-Type") or "").strip()

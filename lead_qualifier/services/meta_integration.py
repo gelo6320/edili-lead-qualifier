@@ -252,20 +252,8 @@ class MetaIntegrationService:
             )
         except SupabaseAdminError as exc:
             if _is_schema_missing_error(exc):
-                try:
-                    payload = self._admin.request(
-                        "GET",
-                        "/rest/v1/meta_page_subscriptions",
-                        params={
-                            "owner_user_id": f"eq.{owner_user_id}",
-                            "select": "page_id,page_name,is_active",
-                            "order": "page_name.asc",
-                        },
-                    )
-                except SupabaseAdminError:
-                    return []
-            else:
-                raise MetaIntegrationError(str(exc)) from exc
+                return []
+            raise MetaIntegrationError(str(exc)) from exc
         options: list[dict[str, str]] = []
         if not isinstance(payload, list):
             return options
@@ -399,7 +387,7 @@ class MetaIntegrationService:
                 headers=headers,
                 params=params,
                 json=json_body,
-                timeout=30.0,
+                timeout=self._settings.http_timeout_seconds,
             )
         except httpx.HTTPError as exc:
             raise MetaIntegrationError(str(exc)) from exc
@@ -614,7 +602,7 @@ class MetaIntegrationService:
     ) -> dict[str, Any]:
         url = path_or_url if absolute else f"https://graph.facebook.com{path_or_url}"
         try:
-            response = httpx.request(method, url, params=params, timeout=30.0)
+            response = httpx.request(method, url, params=params, timeout=self._settings.http_timeout_seconds)
         except httpx.HTTPError as exc:
             raise MetaIntegrationError(str(exc)) from exc
 
