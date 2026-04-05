@@ -1,4 +1,15 @@
 import { useEffect, useState } from 'react'
+import {
+  ChevronsLeft,
+  ChevronsRight,
+  type LucideIcon,
+  Menu,
+  MessageSquare,
+  Plus,
+  Send,
+  Settings2,
+  X,
+} from 'lucide-react'
 
 import { AuthView } from '@/features/auth/components/auth-view'
 import { BotEditor } from '@/features/bots/components/bot-editor'
@@ -39,13 +50,16 @@ import {
 } from '@/shared/ui/card'
 import { GeloLogo } from '@/shared/ui/gelo-logo'
 
-type Section = 'config' | 'template' | 'test' | 'chat'
+type Section = 'config' | 'template' | 'chat'
 
-const NAV_ITEMS: { id: Section; label: string }[] = [
-  { id: 'config', label: 'Config' },
-  { id: 'template', label: 'Template' },
-  { id: 'test', label: 'Test' },
-  { id: 'chat', label: 'Chat' },
+const NAV_ITEMS: {
+  id: Section
+  label: string
+  icon: LucideIcon
+}[] = [
+  { id: 'config', label: 'Config', icon: Settings2 },
+  { id: 'template', label: 'Template', icon: Send },
+  { id: 'chat', label: 'Chat', icon: MessageSquare },
 ]
 
 const EMPTY_META_ASSETS: MetaAssetsPayload = {
@@ -568,7 +582,11 @@ function App() {
                 : 'Comprimi sidebar'
             }
           >
-            {isSidebarCollapsed ? '\u00BB' : '\u00AB'}
+            {isSidebarCollapsed ? (
+              <ChevronsRight className="h-4 w-4" />
+            ) : (
+              <ChevronsLeft className="h-4 w-4" />
+            )}
           </Button>
         </div>
 
@@ -606,7 +624,7 @@ function App() {
             aria-label="Nuovo bot"
             title="Nuovo bot"
           >
-            <span className="text-base leading-none">+</span>
+            <Plus className="h-4 w-4" />
           </Button>
 
           <Button
@@ -617,7 +635,11 @@ function App() {
             aria-label={mobileNavOpen ? 'Chiudi navigazione' : 'Apri navigazione'}
             title={mobileNavOpen ? 'Chiudi navigazione' : 'Apri navigazione'}
           >
-            <span className="text-base leading-none">{mobileNavOpen ? '\u00D7' : '\u2261'}</span>
+            {mobileNavOpen ? (
+              <X className="h-4 w-4" />
+            ) : (
+              <Menu className="h-4 w-4" />
+            )}
           </Button>
 
           <Button
@@ -652,6 +674,7 @@ function App() {
           <nav className="flex-1 p-2">
             {NAV_ITEMS.map((item) => {
               const isActive = activeSection === item.id
+              const Icon = item.icon
               return (
                 <button
                   key={item.id}
@@ -670,7 +693,10 @@ function App() {
                   aria-label={item.label}
                   title={item.label}
                 >
-                  <span className="truncate">{isSidebarCollapsed ? item.label.charAt(0) : item.label}</span>
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  {!isSidebarCollapsed ? (
+                    <span className="truncate">{item.label}</span>
+                  ) : null}
                 </button>
               )
             })}
@@ -711,7 +737,7 @@ function App() {
             />
           ) : null}
 
-          {activeSection === 'template' || activeSection === 'test' ? (
+          {activeSection === 'template' ? (
             <SendTemplateCard
               bot={draftBot}
               error={templateError}

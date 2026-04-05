@@ -128,4 +128,13 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=503, detail="Database non raggiungibile.") from exc
         return {"status": "ok"}
 
+    @app.get("/{asset_name}", response_model=None)
+    async def dashboard_root_asset(asset_name: str):
+        if "." not in asset_name:
+            raise HTTPException(status_code=404, detail="Not found.")
+        asset_file = settings.dashboard_dist_path / asset_name
+        if asset_file.exists() and asset_file.is_file():
+            return FileResponse(asset_file)
+        raise HTTPException(status_code=404, detail="Not found.")
+
     return app
