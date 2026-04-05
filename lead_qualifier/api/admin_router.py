@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Request
 from lead_qualifier.api.admin_auth import require_admin_api_key
 from lead_qualifier.api.schemas import TemplateSendRequest
 from lead_qualifier.core.settings import Settings
+from lead_qualifier.integrations.whatsapp.client import WhatsAppCloudError
 from lead_qualifier.services.outbound import OutboundMessageService
 
 
@@ -24,8 +25,11 @@ def build_admin_router(settings: Settings, service: OutboundMessageService) -> A
             )
         except FileNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except WhatsAppCloudError as exc:
+            status_code = 400 if 400 <= exc.status_code < 500 else 502
+            raise HTTPException(status_code=status_code, detail=str(exc)) from exc
         except RuntimeError as exc:
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         return {
             "status": "sent",

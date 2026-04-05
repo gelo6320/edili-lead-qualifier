@@ -35,6 +35,11 @@ class OutboundMessageService:
         config = self._config_store.require(bot_id)
         access_token = self._runtime_credentials.get_whatsapp_access_token(config)
         resolved_language = language_code or config.template_language
+        self._validate_template_parameters(
+            config=config,
+            template_name=template_name,
+            body_parameters=body_parameters,
+        )
         response = self._whatsapp_client.send_template_message(
             to=to,
             phone_number_id=config.phone_number_id,
@@ -131,6 +136,31 @@ class OutboundMessageService:
             body_parameters=body_parameters,
         )
         self._store.save_lead_state(bot_id, wa_id, lead_state)
+
+    @staticmethod
+    def _validate_template_parameters(
+        *,
+        config,
+        template_name: str,
+        body_parameters: list[str],
+    ) -> None:
+        if template_name.strip() != (config.default_template_name or "").strip():
+            return
+
+        expected_count = max(int(getattr(config, "default_template_variable_count", 0) or 0), 0)
+        actual_count = len(body_parameters)
+        if expected_count == actual_count:
+            return
+
+        if expected_count == 0:
+            raise RuntimeError(
+                f"Il template {template_name} non richiede parametri body, ma ne hai inviati {actual_count}."
+            )
+
+        raise RuntimeError(
+            f"Il template {template_name} richiede {expected_count} parametro/i body. "
+            f"Ricevuti: {actual_count}."
+        )
 
 
 def _build_default_template_parameters(config, *, full_name: str) -> list[str]:

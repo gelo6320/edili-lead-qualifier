@@ -14,6 +14,7 @@ from lead_qualifier.api.schemas import (
 )
 from lead_qualifier.core.settings import Settings
 from lead_qualifier.domain.bot_config import BotConfig
+from lead_qualifier.integrations.whatsapp.client import WhatsAppCloudError
 from lead_qualifier.services.outbound import OutboundMessageService
 from lead_qualifier.services.meta_integration import MetaIntegrationError, MetaIntegrationService
 from lead_qualifier.services.website_personalization import (
@@ -141,13 +142,21 @@ def build_dashboard_api_router(
     @router.post("/send-template")
     async def send_template(payload: TemplateSendRequest, request: Request) -> dict:
         await require_dashboard_user(request, settings)
-        response = outbound_service.send_template(
-            bot_id=payload.bot_id,
-            to=payload.to,
-            template_name=payload.template_name,
-            language_code=payload.language_code,
-            body_parameters=payload.body_parameters,
-        )
+        try:
+            response = outbound_service.send_template(
+                bot_id=payload.bot_id,
+                to=payload.to,
+                template_name=payload.template_name,
+                language_code=payload.language_code,
+                body_parameters=payload.body_parameters,
+            )
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except WhatsAppCloudError as exc:
+            status_code = 400 if 400 <= exc.status_code < 500 else 502
+            raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {
             "status": "sent",
             "response": response,
@@ -158,13 +167,19 @@ def build_dashboard_api_router(
         await require_dashboard_user(request, settings)
         if config_store.get(bot_id) is None:
             raise HTTPException(status_code=404, detail="Bot non trovato.")
-        response = outbound_service.send_test_template(
-            bot_id=bot_id,
-            to=payload.to,
-            template_name=payload.template_name,
-            language_code=payload.language_code,
-            body_parameters=payload.body_parameters,
-        )
+        try:
+            response = outbound_service.send_test_template(
+                bot_id=bot_id,
+                to=payload.to,
+                template_name=payload.template_name,
+                language_code=payload.language_code,
+                body_parameters=payload.body_parameters,
+            )
+        except WhatsAppCloudError as exc:
+            status_code = 400 if 400 <= exc.status_code < 500 else 502
+            raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {
             "status": "sent",
             "response": response,

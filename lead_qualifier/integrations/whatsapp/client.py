@@ -8,6 +8,13 @@ import httpx
 from lead_qualifier.core.settings import Settings
 
 
+class WhatsAppCloudError(RuntimeError):
+    def __init__(self, message: str, *, status_code: int = 500, payload: dict[str, Any] | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.payload = payload or {}
+
+
 class WhatsAppCloudClient:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
@@ -37,14 +44,31 @@ class WhatsAppCloudClient:
         *,
         access_token: str | None = None,
     ) -> dict[str, Any]:
-        response = httpx.post(
-            self._build_endpoint(phone_number_id),
-            headers=self._headers(access_token),
-            json=payload,
-            timeout=30.0,
-        )
-        response.raise_for_status()
-        return response.json()
+        try:
+            response = httpx.post(
+                self._build_endpoint(phone_number_id),
+                headers=self._headers(access_token),
+                json=payload,
+                timeout=30.0,
+            )
+        except httpx.HTTPError as exc:
+            raise WhatsAppCloudError(str(exc), status_code=502) from exc
+
+        try:
+            data = response.json()
+        except ValueError:
+            data = {"raw": response.text}
+
+        if not response.is_success:
+            raise WhatsAppCloudError(
+                _format_meta_error(data, response.status_code),
+                status_code=response.status_code,
+                payload=data if isinstance(data, dict) else {"response": data},
+            )
+
+        if isinstance(data, dict):
+            return data
+        return {"response": data}
 
     def send_text_message(
         self,
@@ -122,3 +146,23 @@ class WhatsAppCloudClient:
             "template": template,
         }
         return self._post_message(phone_number_id, payload, access_token=access_token)
+
+
+def _format_meta_error(payload: object, status_code: int) -> str:
+    if isinstance(payload, dict):
+        error = payload.get("error")
+        if isinstance(error, dict):
+            message = str(error.get("message") or "").strip()
+            code = str(error.get("code") or "").strip()
+            subcode = str(error.get("error_subcode") or "").strip()
+            details = str(error.get("error_data", {}).get("details") or "").strip() if isinstance(error.get("error_data"), dict) else ""
+
+            parts = [part for part in [message, details] if part]
+            detail = " ".join(parts).strip() or f"Errore Meta HTTP {status_code}."
+            if code and subcode:
+                return f"{detail} (code {code}, subcode {subcode})"
+            if code:
+                return f"{detail} (code {code})"
+            return detail
+
+    return f"Errore Meta HTTP {status_code}."
