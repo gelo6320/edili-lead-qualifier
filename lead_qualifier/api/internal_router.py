@@ -101,7 +101,7 @@ def build_internal_router(
                 "template_language": config.template_language,
             }
             for config in config_store.list_configs()
-            if not allowed_owner_ids or config.owner_user_id in allowed_owner_ids
+            if config.owner_user_id in allowed_owner_ids
         ]
 
     @router.post("/qualifier/page-link")

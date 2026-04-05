@@ -3,7 +3,8 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 
-from lead_qualifier.domain.lead import InboundWhatsAppMessage, StoredMessage
+from lead_qualifier.domain.bot_config import BotConfig
+from lead_qualifier.domain.lead import InboundWhatsAppMessage, LeadState, StoredMessage
 from lead_qualifier.integrations.anthropic.client import AnthropicLeadQualifier
 from lead_qualifier.integrations.whatsapp.client import WhatsAppCloudClient
 from lead_qualifier.integrations.whatsapp.parser import iter_inbound_messages
@@ -132,11 +133,11 @@ class InboundMessageService:
     def _build_user_message(
         self,
         *,
-        config,
+        config: BotConfig,
         message: InboundWhatsAppMessage,
-        lead_state,
+        lead_state: LeadState,
         access_token: str,
-    ) -> tuple[StoredMessage, object]:
+    ) -> tuple[StoredMessage, LeadState]:
         if message.image_media_id:
             try:
                 media_result = self._lead_media.process_inbound_image(
@@ -168,7 +169,7 @@ class InboundMessageService:
         return StoredMessage.user(message.text), lead_state
 
 
-def _mark_image_requirement_as_received(config, lead_state):
+def _mark_image_requirement_as_received(config: BotConfig, lead_state: LeadState) -> LeadState:
     if not config.image_field_keys:
         return lead_state
     next_field_values = dict(lead_state.field_values)

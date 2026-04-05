@@ -88,11 +88,7 @@ class WebsitePersonalizationService:
 
     def _summarize_pages(self, *, bot: BotConfig, site_url: str, pages: list[dict[str, str]]) -> dict[str, Any]:
         if self._anthropic is None:
-            return {
-                "company_description": bot.company_description,
-                "service_area": bot.service_area,
-                "company_services": bot.company_services,
-            }
+            raise WebsitePersonalizationError("ANTHROPIC_API_KEY non configurata per la personalizzazione.")
 
         context_parts: list[str] = []
         for page in pages[:8]:

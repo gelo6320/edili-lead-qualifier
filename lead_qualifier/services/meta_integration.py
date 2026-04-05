@@ -82,14 +82,7 @@ class MetaIntegrationService:
                     if owner_id:
                         resolved_ids.append(owner_id)
 
-        deduped_ids: list[str] = []
-        seen_ids: set[str] = set()
-        for owner_id in resolved_ids:
-            if owner_id in seen_ids:
-                continue
-            deduped_ids.append(owner_id)
-            seen_ids.add(owner_id)
-        return deduped_ids
+        return list(dict.fromkeys(resolved_ids))
 
     def build_oauth_authorize_url(self, owner_user_id: str) -> str:
         if not self._settings.meta_app_id or not self._settings.meta_app_secret:

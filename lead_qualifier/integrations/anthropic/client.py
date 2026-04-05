@@ -192,13 +192,13 @@ def _extract_usage(message: Any) -> dict[str, int]:
         return {}
 
     return {
-        "input_tokens": int(getattr(usage, "input_tokens", 0) or 0),
-        "output_tokens": int(getattr(usage, "output_tokens", 0) or 0),
-        "cache_creation_input_tokens": int(getattr(usage, "cache_creation_input_tokens", 0) or 0),
-        "cache_read_input_tokens": int(getattr(usage, "cache_read_input_tokens", 0) or 0),
+        "input_tokens": getattr(usage, "input_tokens", 0),
+        "output_tokens": getattr(usage, "output_tokens", 0),
+        "cache_creation_input_tokens": getattr(usage, "cache_creation_input_tokens", 0),
+        "cache_read_input_tokens": getattr(usage, "cache_read_input_tokens", 0),
     }
 
 
 def _accumulate_usage(target: dict[str, int], usage: dict[str, int]) -> None:
     for key, value in usage.items():
-        target[key] = target.get(key, 0) + int(value or 0)
+        target[key] = target.get(key, 0) + value

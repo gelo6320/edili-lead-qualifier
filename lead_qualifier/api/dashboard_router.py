@@ -7,11 +7,11 @@ from dataclasses import asdict
 
 from lead_qualifier.api.dashboard_auth import require_dashboard_user
 from lead_qualifier.api.schemas import (
-    BotConfigRequest,
     SiteCrawlRequest,
     TemplateSendRequest,
     TemplateTestRequest,
 )
+from lead_qualifier.domain.bot_config import BotConfig
 from lead_qualifier.core.settings import Settings
 from lead_qualifier.domain.bot_config import BotConfig
 from lead_qualifier.integrations.whatsapp.client import WhatsAppCloudError
@@ -77,11 +77,11 @@ def build_dashboard_api_router(
         return config.model_dump(mode="json")
 
     @router.post("/bots")
-    async def create_bot(payload: BotConfigRequest, request: Request) -> dict:
+    async def create_bot(payload: BotConfig, request: Request) -> dict:
         user = await require_dashboard_user(request, settings)
         if config_store.get(payload.id):
             raise HTTPException(status_code=409, detail="Esiste gia un bot con questo id.")
-        prepared_payload = BotConfigRequest.model_validate(
+        prepared_payload = BotConfig.model_validate(
             {
                 **payload.model_dump(mode="json"),
                 "owner_user_id": user.id,
@@ -98,14 +98,14 @@ def build_dashboard_api_router(
         return saved.model_dump(mode="json")
 
     @router.put("/bots/{bot_id}")
-    async def update_bot(bot_id: str, payload: BotConfigRequest, request: Request) -> dict:
+    async def update_bot(bot_id: str, payload: BotConfig, request: Request) -> dict:
         user = await require_dashboard_user(request, settings)
         if payload.id != bot_id:
             raise HTTPException(status_code=400, detail="bot_id nel path e nel payload non coincidono.")
         previous_config = config_store.get(bot_id)
         if previous_config is None or (previous_config.owner_user_id and previous_config.owner_user_id != user.id):
             raise HTTPException(status_code=404, detail="Bot non trovato.")
-        prepared_payload = BotConfigRequest.model_validate(
+        prepared_payload = BotConfig.model_validate(
             {
                 **payload.model_dump(mode="json"),
                 "owner_user_id": user.id,

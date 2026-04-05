@@ -2,9 +2,6 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, field_validator
 
-from lead_qualifier.domain.bot_config import BotConfig
-
-
 class TemplateSendRequest(BaseModel):
     bot_id: str = Field(..., description="Identificatore del bot da usare.")
     to: str = Field(..., description="Numero WhatsApp del lead in formato internazionale, senza +.")
@@ -73,10 +70,6 @@ class TemplateTestRequest(BaseModel):
         if not isinstance(value, list):
             raise ValueError("body_parameters deve essere una lista.")
         return [str(item).strip() for item in value if str(item).strip()]
-
-
-class BotConfigRequest(BotConfig):
-    pass
 
 
 class SiteCrawlRequest(BaseModel):

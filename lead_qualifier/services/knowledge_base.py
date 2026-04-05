@@ -175,7 +175,7 @@ class KnowledgeBaseService:
                 )
                 rows = cursor.fetchall()
                 if rows:
-                    return rows or []
+                    return rows
 
                 tokens = _tokenize_query(cleaned_query)
                 if not tokens:
@@ -213,4 +213,4 @@ class KnowledgeBaseService:
                     tuple(score_params + [bot_id] + filter_params + [max(limit, 1)]),
                 )
                 rows = cursor.fetchall()
-        return rows or []
+        return rows if rows else []

@@ -39,11 +39,9 @@ class OutboundMessageService:
         config = self._config_store.require(bot_id)
         access_token = self._runtime_credentials.get_whatsapp_access_token(config)
         resolved_language = language_code or config.template_language
-        template_body = (
-            config.default_template_body_text
-            if template_name.strip() == (config.default_template_name or "").strip()
-            else ""
-        )
+        is_default_template = template_name.strip() == (config.default_template_name or "").strip()
+        template_body = config.default_template_body_text if is_default_template else ""
+        template_id = config.default_template_id if is_default_template else ""
         rendered_text = _render_template_body(template_body, body_parameters)
         self._validate_template_parameters(
             config=config,
@@ -62,7 +60,7 @@ class OutboundMessageService:
         self._bootstrap_conversation(
             bot_id=config.id,
             wa_id=to,
-            template_id=config.default_template_id if template_name.strip() == (config.default_template_name or "").strip() else "",
+            template_id=template_id,
             template_name=template_name,
             language_code=resolved_language,
             template_body=template_body,
@@ -72,7 +70,7 @@ class OutboundMessageService:
 
         template_payload = {
             "kind": "outbound_template",
-            "template_id": config.default_template_id if template_name.strip() == (config.default_template_name or "").strip() else "",
+            "template_id": template_id,
             "template_name": template_name,
             "language_code": resolved_language,
             "template_body": template_body,
