@@ -454,167 +454,179 @@ export function BotEditor({
         ) : null}
       </section>
 
-      <section className="grid gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-3">
-        <div className="grid gap-2">
-          <Label htmlFor="bot-id" className="text-sm font-semibold">ID bot</Label>
-          <Input
-            id="bot-id"
-            className="h-11 rounded-xl"
-            value={bot.id}
-            disabled={!isNew}
-            onChange={(event) => patch('id', event.target.value)}
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="bot-name" className="text-sm font-semibold">Nome bot</Label>
-          <Input
-            id="bot-name"
-            className="h-11 rounded-xl"
-            value={bot.name}
-            onChange={(event) => patch('name', event.target.value)}
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="company-name" className="text-sm font-semibold">Azienda</Label>
-          <Input
-            id="company-name"
-            className="h-11 rounded-xl"
-            value={bot.company_name}
-            onChange={(event) => patch('company_name', event.target.value)}
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="company-service-area" className="text-sm font-semibold">Area di servizio</Label>
-          <Input
-            id="company-service-area"
-            className="h-11 rounded-xl"
-            value={bot.service_area}
-            onChange={(event) => patch('service_area', event.target.value)}
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="agent-name" className="text-sm font-semibold">Nome agente</Label>
-          <Input
-            id="agent-name"
-            className="h-11 rounded-xl"
-            value={bot.agent_name}
-            onChange={(event) => patch('agent_name', event.target.value)}
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="booking-url" className="text-sm font-semibold">Booking URL</Label>
-          <Input
-            id="booking-url"
-            className="h-11 rounded-xl"
-            value={bot.booking_url}
-            onChange={(event) => patch('booking_url', event.target.value)}
-          />
-        </div>
-
-        <div className="grid gap-2 sm:col-span-2 xl:col-span-3">
-          <Label htmlFor="company-description" className="text-sm font-semibold">Descrizione azienda</Label>
-          <Textarea
-            id="company-description"
-            className="min-h-28 rounded-xl"
-            value={bot.company_description}
-            onChange={(event) => patch('company_description', event.target.value)}
-          />
-        </div>
-
-        <div className="grid gap-2 sm:col-span-2 xl:col-span-3">
-          <Label htmlFor="company-services" className="text-sm font-semibold">Servizi principali</Label>
-          <Input
-            id="company-services"
-            className="h-11 rounded-xl"
-            placeholder="Ristrutturazioni, Facciate, Tetti"
-            value={listToCommaSeparated(bot.company_services)}
-            onChange={(event) =>
-              patch('company_services', commaSeparatedToList(event.target.value))
-            }
-          />
-        </div>
-
-        <div className="grid gap-2 sm:col-span-2 xl:col-span-3">
-          <Label htmlFor="website-url" className="text-sm font-semibold">Sito aziendale</Label>
-          <div className="flex flex-col gap-3 lg:flex-row">
+      <section className="grid gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
+        <h2 className="text-sm font-semibold">Identità bot</h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-2">
+            <Label htmlFor="bot-id" className="text-xs text-muted-foreground">ID bot</Label>
             <Input
-              id="website-url"
+              id="bot-id"
               className="h-11 rounded-xl"
-              placeholder="https://www.example.com"
-              value={bot.website_url}
-              onChange={(event) => patch('website_url', event.target.value)}
+              value={bot.id}
+              disabled={!isNew}
+              onChange={(event) => patch('id', event.target.value)}
             />
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2 rounded-xl lg:min-w-[12rem]"
-              onClick={() => onCrawlSite(bot.website_url)}
-              disabled={
-                !cloudflareCrawlEnabled ||
-                isNew ||
-                isCrawlingSite ||
-                !bot.website_url.trim()
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="bot-name" className="text-xs text-muted-foreground">Nome bot</Label>
+            <Input
+              id="bot-name"
+              className="h-11 rounded-xl"
+              value={bot.name}
+              onChange={(event) => patch('name', event.target.value)}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="agent-name" className="text-xs text-muted-foreground">Nome agente</Label>
+            <Input
+              id="agent-name"
+              className="h-11 rounded-xl"
+              value={bot.agent_name}
+              onChange={(event) => patch('agent_name', event.target.value)}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
+        <h2 className="text-sm font-semibold">Azienda</h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-2">
+            <Label htmlFor="company-name" className="text-xs text-muted-foreground">Nome azienda</Label>
+            <Input
+              id="company-name"
+              className="h-11 rounded-xl"
+              value={bot.company_name}
+              onChange={(event) => patch('company_name', event.target.value)}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="company-service-area" className="text-xs text-muted-foreground">Area di servizio</Label>
+            <Input
+              id="company-service-area"
+              className="h-11 rounded-xl"
+              value={bot.service_area}
+              onChange={(event) => patch('service_area', event.target.value)}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="company-services" className="text-xs text-muted-foreground">Servizi principali</Label>
+            <Input
+              id="company-services"
+              className="h-11 rounded-xl"
+              placeholder="Ristrutturazioni, Facciate, Tetti"
+              value={listToCommaSeparated(bot.company_services)}
+              onChange={(event) =>
+                patch('company_services', commaSeparatedToList(event.target.value))
               }
-            >
-              {isCrawlingSite ? 'Analisi in corso...' : 'Crawl + knowledge'}
-            </Button>
+            />
+          </div>
+
+          <div className="grid gap-2 sm:col-span-2 xl:col-span-3">
+            <Label htmlFor="company-description" className="text-xs text-muted-foreground">Descrizione azienda</Label>
+            <Textarea
+              id="company-description"
+              className="min-h-28 rounded-xl"
+              value={bot.company_description}
+              onChange={(event) => patch('company_description', event.target.value)}
+            />
           </div>
         </div>
+      </section>
 
-        <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground sm:col-span-2 xl:col-span-3">
-          <div className="font-semibold text-foreground">
-            Sito + RAG
+      <section className="grid gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
+        <h2 className="text-sm font-semibold">Sito web e knowledge base</h2>
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="website-url" className="text-xs text-muted-foreground">Sito aziendale</Label>
+            <div className="flex flex-col gap-3 lg:flex-row">
+              <Input
+                id="website-url"
+                className="h-11 rounded-xl"
+                placeholder="https://www.example.com"
+                value={bot.website_url}
+                onChange={(event) => patch('website_url', event.target.value)}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2 rounded-xl lg:min-w-[12rem]"
+                onClick={() => onCrawlSite(bot.website_url)}
+                disabled={
+                  !cloudflareCrawlEnabled ||
+                  isNew ||
+                  isCrawlingSite ||
+                  !bot.website_url.trim()
+                }
+              >
+                {isCrawlingSite ? 'Analisi in corso...' : 'Crawl + knowledge'}
+              </Button>
+            </div>
           </div>
-          {!cloudflareCrawlEnabled ? (
-            <p className="mt-2 text-amber-700">
-              Configura Cloudflare.
-            </p>
-          ) : null}
-          {isNew ? (
-            <p className="mt-2">
-              Salva prima.
-            </p>
-          ) : null}
-          {crawlNotice ? (
-            <p className="mt-2 text-primary">{crawlNotice}</p>
-          ) : null}
-          {crawlError ? (
-            <p className="mt-2 text-destructive">{crawlError}</p>
+
+          {(!cloudflareCrawlEnabled || isNew || crawlNotice || crawlError) ? (
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+              {!cloudflareCrawlEnabled ? (
+                <p className="text-amber-700">Configura Cloudflare.</p>
+              ) : null}
+              {isNew ? (
+                <p>Salva prima.</p>
+              ) : null}
+              {crawlNotice ? (
+                <p className="text-primary">{crawlNotice}</p>
+              ) : null}
+              {crawlError ? (
+                <p className="text-destructive">{crawlError}</p>
+              ) : null}
+            </div>
           ) : null}
         </div>
+      </section>
 
-        <div className="grid gap-2">
-          <Label htmlFor="qualification-statuses" className="text-sm font-semibold">Stati</Label>
-          <Input
-            id="qualification-statuses"
-            className="h-11 rounded-xl"
-            placeholder="caldo, tiepido, freddo"
-            value={listToCommaSeparated(bot.qualification_statuses)}
-            onChange={(event) =>
-              patch(
-                'qualification_statuses',
-                commaSeparatedToList(event.target.value),
-              )
-            }
-          />
+      <section className="grid gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
+        <h2 className="text-sm font-semibold">Qualificazione e prenotazione</h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-2">
+            <Label htmlFor="qualification-statuses" className="text-xs text-muted-foreground">Stati qualificazione</Label>
+            <Input
+              id="qualification-statuses"
+              className="h-11 rounded-xl"
+              placeholder="caldo, tiepido, freddo"
+              value={listToCommaSeparated(bot.qualification_statuses)}
+              onChange={(event) =>
+                patch(
+                  'qualification_statuses',
+                  commaSeparatedToList(event.target.value),
+                )
+              }
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="booking-url" className="text-xs text-muted-foreground">Booking URL</Label>
+            <Input
+              id="booking-url"
+              className="h-11 rounded-xl"
+              value={bot.booking_url}
+              onChange={(event) => patch('booking_url', event.target.value)}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="template-language-readonly" className="text-xs text-muted-foreground">Lingua template attiva</Label>
+            <Input
+              id="template-language-readonly"
+              className="h-11 rounded-xl"
+              value={bot.template_language}
+              onChange={(event) => patch('template_language', event.target.value)}
+              readOnly
+            />
+          </div>
         </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="template-language-readonly" className="text-sm font-semibold">Lingua template attiva</Label>
-          <Input
-            id="template-language-readonly"
-            className="h-11 rounded-xl"
-            value={bot.template_language}
-            onChange={(event) => patch('template_language', event.target.value)}
-            readOnly
-          />
-        </div>
-
       </section>
 
       <FieldListEditor bot={bot} onChange={onChange} />
