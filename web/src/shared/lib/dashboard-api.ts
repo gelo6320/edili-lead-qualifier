@@ -146,6 +146,16 @@ export function listLeadMessages(token: string, botId: string, waId: string) {
   )
 }
 
+export function deleteLeadConversation(token: string, botId: string, waId: string) {
+  return dashboardFetch<{ status: string; bot_id: string; wa_id: string }>(
+    `/api/dashboard/bots/${botId}/leads/${waId}`,
+    {
+      method: 'DELETE',
+    },
+    token,
+  )
+}
+
 export function startMetaOAuth(token: string) {
   return dashboardFetch<{ authorize_url: string }>(
     '/api/dashboard/meta/oauth/start',

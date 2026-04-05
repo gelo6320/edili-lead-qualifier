@@ -329,6 +329,30 @@ class SQLiteLeadStore:
                 ),
             )
 
+    def delete_lead_conversation(self, bot_id: str, wa_id: str) -> None:
+        with self._connection() as connection:
+            connection.execute(
+                """
+                DELETE FROM conversation_messages
+                WHERE bot_id = ? AND wa_id = ?
+                """,
+                (bot_id, wa_id),
+            )
+            connection.execute(
+                """
+                DELETE FROM lead_states
+                WHERE bot_id = ? AND wa_id = ?
+                """,
+                (bot_id, wa_id),
+            )
+            connection.execute(
+                """
+                DELETE FROM inbound_messages
+                WHERE bot_id = ? AND wa_id = ?
+                """,
+                (bot_id, wa_id),
+            )
+
     def reserve_inbound_message(self, message_id: str, bot_id: str, wa_id: str) -> bool:
         with self._connection() as connection:
             try:

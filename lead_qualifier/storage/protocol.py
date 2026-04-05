@@ -33,6 +33,9 @@ class LeadStore(Protocol):
     def save_lead_state(self, bot_id: str, wa_id: str, lead_state: LeadState) -> None:
         ...
 
+    def delete_lead_conversation(self, bot_id: str, wa_id: str) -> None:
+        ...
+
     def reserve_inbound_message(self, message_id: str, bot_id: str, wa_id: str) -> bool:
         ...
 

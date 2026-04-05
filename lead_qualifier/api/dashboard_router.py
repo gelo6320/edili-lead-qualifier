@@ -189,6 +189,16 @@ def build_dashboard_api_router(
         messages = lead_store.list_messages(bot_id, wa_id)
         return [{"role": m.role, "display": m.display} for m in messages]
 
+    @router.delete("/bots/{bot_id}/leads/{wa_id}")
+    async def delete_lead_conversation(bot_id: str, wa_id: str, request: Request) -> dict:
+        await require_dashboard_user(request, settings)
+        if lead_store is None:
+            raise HTTPException(status_code=501, detail="Lead store non disponibile.")
+        if config_store.get(bot_id) is None:
+            raise HTTPException(status_code=404, detail="Bot non trovato.")
+        lead_store.delete_lead_conversation(bot_id, wa_id)
+        return {"status": "deleted", "bot_id": bot_id, "wa_id": wa_id}
+
     @router.get("/meta/oauth/start")
     async def start_meta_oauth(request: Request) -> dict:
         if meta_integration is None:

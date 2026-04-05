@@ -10,6 +10,7 @@ import {
   PanelLeftOpen,
   Plus,
   Settings,
+  TestTube2,
   X,
 } from 'lucide-react'
 
@@ -51,11 +52,12 @@ import {
   CardTitle,
 } from '@/shared/ui/card'
 
-type Section = 'config' | 'template' | 'chat'
+type Section = 'config' | 'template' | 'test' | 'chat'
 
 const NAV_ITEMS: { id: Section; label: string; icon: typeof Settings }[] = [
   { id: 'config', label: 'Config', icon: Settings },
   { id: 'template', label: 'Template', icon: MessageSquare },
+  { id: 'test', label: 'Test', icon: TestTube2 },
   { id: 'chat', label: 'Chat', icon: MessageCircle },
 ]
 
@@ -752,7 +754,7 @@ function App() {
             />
           ) : null}
 
-          {activeSection === 'template' ? (
+          {activeSection === 'template' || activeSection === 'test' ? (
             <SendTemplateCard
               bot={draftBot}
               error={templateError}

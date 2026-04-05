@@ -165,6 +165,31 @@ class PostgresLeadStore:
                     ),
                 )
 
+    def delete_lead_conversation(self, bot_id: str, wa_id: str) -> None:
+        with self._pool.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    DELETE FROM {self._messages_table}
+                    WHERE bot_id = %s AND wa_id = %s
+                    """,
+                    (bot_id, wa_id),
+                )
+                cursor.execute(
+                    f"""
+                    DELETE FROM {self._lead_states_table}
+                    WHERE bot_id = %s AND wa_id = %s
+                    """,
+                    (bot_id, wa_id),
+                )
+                cursor.execute(
+                    f"""
+                    DELETE FROM {self._inbound_messages_table}
+                    WHERE bot_id = %s AND wa_id = %s
+                    """,
+                    (bot_id, wa_id),
+                )
+
     def reserve_inbound_message(self, message_id: str, bot_id: str, wa_id: str) -> bool:
         with self._pool.connection() as connection:
             with connection.cursor() as cursor:

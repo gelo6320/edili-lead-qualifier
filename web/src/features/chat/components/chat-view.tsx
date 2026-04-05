@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Bot, User } from 'lucide-react'
+import { ArrowLeft, Bot, Trash2, User } from 'lucide-react'
 
-import { listLeadMessages, listLeads } from '@/shared/lib/dashboard-api'
+import {
+  deleteLeadConversation,
+  listLeadMessages,
+  listLeads,
+} from '@/shared/lib/dashboard-api'
 import { cn } from '@/shared/lib/utils'
 import type { BotConfig, ChatMessage, LeadSummary } from '@/shared/lib/types'
 import { Button } from '@/shared/ui/button'
@@ -31,29 +35,44 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoadingLeads, setIsLoadingLeads] = useState(false)
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
+  const [deletingWaId, setDeletingWaId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    let active = true
-    async function load() {
-      setIsLoadingLeads(true)
-      setError('')
-      try {
-        const data = await listLeads(accessToken, bot.id)
-        if (active) {
-          setLeads(data)
-          setSelectedWaId(null)
-          setMessages([])
-        }
-      } catch {
-        if (active) setError('Impossibile caricare le conversazioni.')
-      } finally {
-        if (active) setIsLoadingLeads(false)
+  async function reloadLeads(options?: { preserveSelection?: boolean }) {
+    const preserveSelection = options?.preserveSelection ?? false
+    const currentSelectedWaId = selectedWaId
+    setIsLoadingLeads(true)
+    setError('')
+    try {
+      const data = await listLeads(accessToken, bot.id)
+      setLeads(data)
+
+      if (!preserveSelection) {
+        setSelectedWaId(null)
+        setMessages([])
+        return
       }
+
+      if (!currentSelectedWaId) {
+        setMessages([])
+        return
+      }
+
+      const stillExists = data.some((lead) => lead.wa_id === currentSelectedWaId)
+      if (!stillExists) {
+        setSelectedWaId(null)
+        setMessages([])
+      }
+    } catch {
+      setError('Impossibile caricare le conversazioni.')
+    } finally {
+      setIsLoadingLeads(false)
     }
-    void load()
-    return () => { active = false }
+  }
+
+  useEffect(() => {
+    void reloadLeads()
   }, [accessToken, bot.id])
 
   useEffect(() => {
@@ -79,6 +98,29 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
   }, [messages])
 
   const selectedLead = leads.find((l) => l.wa_id === selectedWaId)
+
+  async function handleDeleteConversation(waId: string) {
+    if (deletingWaId) return
+
+    const confirmed = window.confirm(`Cancellare tutta la chat con +${waId}?`)
+    if (!confirmed) return
+
+    setDeletingWaId(waId)
+    setError('')
+
+    try {
+      await deleteLeadConversation(accessToken, bot.id, waId)
+      if (selectedWaId === waId) {
+        setSelectedWaId(null)
+        setMessages([])
+      }
+      await reloadLeads({ preserveSelection: true })
+    } catch {
+      setError('Impossibile cancellare la chat.')
+    } finally {
+      setDeletingWaId(null)
+    }
+  }
 
   return (
     <div className="grid gap-3">
@@ -113,17 +155,18 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                   const statusLabel = STATUS_LABELS[lead.qualification_status] ?? lead.qualification_status
 
                   return (
-                    <button
+                    <div
                       key={lead.wa_id}
-                      type="button"
                       className={cn(
-                        'w-full border-b border-border/40 px-4 py-3 text-left transition-colors',
-                        isActive
-                          ? 'bg-primary/[0.06]'
-                          : 'hover:bg-muted/40',
+                        'flex items-center gap-2 border-b border-border/40 px-2 py-2',
+                        isActive ? 'bg-primary/[0.06]' : 'hover:bg-muted/40',
                       )}
-                      onClick={() => setSelectedWaId(lead.wa_id)}
                     >
+                      <button
+                        type="button"
+                        className="min-w-0 flex-1 px-2 py-1 text-left"
+                        onClick={() => setSelectedWaId(lead.wa_id)}
+                      >
                       <div className="flex items-center gap-2">
                         <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-muted">
                           <User className="h-3.5 w-3.5 text-muted-foreground" />
@@ -143,7 +186,20 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                           {lead.message_count}
                         </span>
                       </div>
-                    </button>
+                      </button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-destructive"
+                        disabled={deletingWaId === lead.wa_id}
+                        onClick={() => void handleDeleteConversation(lead.wa_id)}
+                        title="Clean chat"
+                        aria-label={`Clean chat +${lead.wa_id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   )
                 })}
               </div>
@@ -183,6 +239,18 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                     {STATUS_LABELS[selectedLead.qualification_status] ?? selectedLead.qualification_status}
                   </span>
                 ) : null}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                  disabled={!selectedWaId || deletingWaId === selectedWaId}
+                  onClick={() => selectedWaId ? void handleDeleteConversation(selectedWaId) : undefined}
+                  title="Clean chat"
+                  aria-label="Clean chat"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
 
               <div className="flex-1 overflow-y-auto bg-muted/20 px-4 py-4 lg:px-6">
