@@ -19,11 +19,12 @@ La dashboard:
 - Ogni bot definisce i propri campi richiesti e i propri dati aziendali.
 - Il prompt operativo e il prompt principale sono fissati nel codice e non vengono editati da dashboard.
 - Quando il lead e qualificato, Claude puo usare il tool di handoff verso il lead manager.
-- Il template iniziale crea subito la conversazione e il relativo contesto agente.
+- Il template iniziale crea subito la conversazione e il relativo contesto agente, salvando anche il body renderizzato con i parametri.
 - La dashboard puo collegare Facebook via OAuth e leggere direttamente WABA, numeri WhatsApp, template approvati e pagine lead-manager disponibili.
 - I token Meta utente e i secret del bridge tra servizi vengono custoditi in Supabase Vault, non in chiaro.
 - Lead qualifier e lead-manager possono instaurare un bridge firmato HMAC per avviare la qualifica da un lead Meta e per re-inviare lead qualificati verso `POST /api/leads/custom`.
 - Un sito web puo essere analizzato tramite Cloudflare `/crawl` per popolare dati aziendali e knowledge base RAG consultata dall'agente.
+- Le immagini inviate dal lead via WhatsApp possono essere scaricate, passate a Claude e reinoltrate al lead-manager con URL pubblici.
 - I file in [bot_configs](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/bot_configs) restano come seed/versioning.
 - In produzione le configurazioni vengono persistite in `public.bot_configs` su Supabase.
 - Le tabelle runtime multi-tenant sono in `public`, non piu nello schema legacy `lead_qualifier`.
@@ -229,6 +230,8 @@ Campi principali:
 - `agent_name`
 - `phone_number_id`
 - `default_template_name`
+- `default_template_id`
+- `default_template_body_text`
 - `template_language`
 - `booking_url`
 - `lead_manager_page_id`

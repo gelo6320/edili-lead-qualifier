@@ -112,6 +112,9 @@ def _build_form_responses(config: BotConfig, lead_state: LeadState) -> list[str]
     if lead_state.summary.strip():
         responses.append(f"Summary: {lead_state.summary.strip()}")
 
+    if lead_state.metadata.images:
+        responses.append(f"Immagini ricevute: {len(lead_state.metadata.images)}")
+
     return responses
 
 
@@ -121,18 +124,33 @@ def _build_custom_fields(
     lead_state: LeadState,
     manager_note: str,
 ) -> dict[str, Any]:
+    image_payloads = [
+        {
+            "message_id": image.message_id,
+            "media_id": image.media_id,
+            "public_url": image.public_url,
+            "mime_type": image.mime_type,
+            "caption": image.caption,
+            "uploaded_at": image.uploaded_at,
+        }
+        for image in lead_state.metadata.images
+    ]
     custom_fields: dict[str, Any] = {
         "wa_id": wa_id,
         "qualifier_bot_id": config.id,
         "qualifier_bot_name": config.name,
         "qualification_status": lead_state.qualification_status,
         "summary": lead_state.summary,
+        "lead_summary": lead_state.summary,
         "manager_note": manager_note.strip(),
         "company_name": config.company_name,
         "company_description": config.company_description,
         "service_area": config.service_area,
         "company_services": config.company_services,
         "agent_name": config.agent_name,
+        "image_urls": lead_state.metadata.image_public_urls,
+        "image_count": len(lead_state.metadata.images),
+        "images": image_payloads,
     }
 
     for field in config.fields:

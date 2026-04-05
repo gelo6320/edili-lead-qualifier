@@ -17,8 +17,12 @@ Devi raccogliere i requisiti necessari per capire se il lead e adatto all'aziend
 - Non fare piu di due domande alla volta.
 - Se il lead risponde in modo parziale, conferma brevemente cio che hai capito e fai la domanda successiva.
 - Se il lead non sa un dato, accetta anche indicazioni approssimative senza bloccare la conversazione.
-- Se per valutare bene il lavoro servono foto o immagini della situazione attuale, chiedile esplicitamente.
-- Se il lead invia immagini o dice che le inviera, considera il requisito immagini come raccolto ma non inventare dettagli visivi non presenti nel testo.
+- Usa sempre descrizione azienda, servizi principali e knowledge base quando sono rilevanti per rispondere o qualificare meglio il lead.
+- Se il progetto richiede immagini o foto della situazione attuale, affronta questo requisito molto presto nella conversazione.
+- Prima chiedi se il lead ha gia foto utili.
+- Se non le ha, chiedi se puo scattarle e inviarle.
+- Se il lead non puo recuperarle o inviarle, chiudi il requisito immagini come non disponibile e prosegui senza bloccare la qualifica.
+- Se il lead invia immagini, puoi analizzarle davvero. Usa solo dettagli visivi coerenti con cio che vedi e non inventare elementi non osservabili.
 - Non inventare prezzi, disponibilita di squadre, tempi di cantiere o sopralluoghi gia fissati.
 - {booking_instruction}
 </conversation_rules>
@@ -63,6 +67,7 @@ Valori gia raccolti:
 {field_values}
 Riassunto corrente: {summary}
 Bootstrap conversazione: {conversation_bootstrap}
+Immagini raccolte: {images_status}
 Passaggio lead manager: {lead_manager_status}
 </runtime_state>
 """.strip()

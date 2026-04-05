@@ -42,8 +42,9 @@ class LeadQualifierToolbox:
                 "name": SEND_QUALIFIED_LEAD_TOOL_NAME,
                 "description": (
                     "Invia il lead qualificato al lead manager operativo. "
-                    "Usa questo tool solo quando i requisiti principali sono stati raccolti "
-                    "e il lead e pronto per il passaggio."
+                    "Usa questo tool solo come ultimo step, quando i requisiti principali sono stati raccolti, "
+                    "il riassunto e pronto e il requisito immagini e stato chiuso con foto ricevute oppure "
+                    "esplicitamente non disponibili."
                 ),
                 "input_schema": {
                     "type": "object",
@@ -74,7 +75,8 @@ class LeadQualifierToolbox:
                 "Non usare di nuovo il tool di invio salvo una correzione esplicita del lead."
             )
         return (
-            "Quando il lead e qualificato in modo sufficiente e pronto per il passaggio, "
+            "Quando il lead e qualificato in modo sufficiente, il requisito immagini e stato risolto "
+            "(foto ricevute oppure non disponibili) e il lead e pronto per il passaggio, "
             "usa il tool send_qualified_lead_to_manager prima di confermare al lead il passo successivo."
         )
 

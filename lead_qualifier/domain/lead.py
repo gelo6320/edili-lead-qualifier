@@ -16,6 +16,14 @@ class StoredMessage:
         return StoredMessage(role="user", display=text, api_content=text)
 
     @staticmethod
+    def user_blocks(display: str, content_blocks: list[dict[str, Any]]) -> "StoredMessage":
+        return StoredMessage(
+            role="user",
+            display=display,
+            api_content=json.dumps(content_blocks, ensure_ascii=False),
+        )
+
+    @staticmethod
     def assistant(display: str, payload: dict[str, Any]) -> "StoredMessage":
         return StoredMessage(
             role="assistant",
@@ -25,10 +33,38 @@ class StoredMessage:
 
 
 @dataclass(frozen=True)
+class LeadImageAsset:
+    message_id: str = ""
+    media_id: str = ""
+    public_url: str = ""
+    storage_path: str = ""
+    mime_type: str = ""
+    caption: str = ""
+    uploaded_at: str = ""
+
+    @classmethod
+    def from_payload(cls, payload: dict[str, Any] | None) -> "LeadImageAsset":
+        payload = payload or {}
+        return cls(
+            message_id=str(payload.get("message_id", "")).strip(),
+            media_id=str(payload.get("media_id", "")).strip(),
+            public_url=str(payload.get("public_url", "")).strip(),
+            storage_path=str(payload.get("storage_path", "")).strip(),
+            mime_type=str(payload.get("mime_type", "")).strip(),
+            caption=str(payload.get("caption", "")).strip(),
+            uploaded_at=str(payload.get("uploaded_at", "")).strip(),
+        )
+
+
+@dataclass(frozen=True)
 class LeadRuntimeMetadata:
+    initial_template_id: str = ""
     initial_template_name: str = ""
     initial_template_language: str = ""
+    initial_template_body: str = ""
+    initial_template_rendered_text: str = ""
     initial_template_parameters: list[str] = field(default_factory=list)
+    images: list[LeadImageAsset] = field(default_factory=list)
     lead_manager_forwarded_at: str = ""
     lead_manager_reference: str = ""
     lead_manager_note: str = ""
@@ -38,14 +74,24 @@ class LeadRuntimeMetadata:
     def from_payload(cls, payload: dict[str, Any] | None) -> "LeadRuntimeMetadata":
         payload = payload or {}
         return cls(
+            initial_template_id=str(payload.get("initial_template_id", "")).strip(),
             initial_template_name=str(payload.get("initial_template_name", "")).strip(),
             initial_template_language=str(payload.get("initial_template_language", "")).strip(),
+            initial_template_body=str(payload.get("initial_template_body", "")).strip(),
+            initial_template_rendered_text=str(payload.get("initial_template_rendered_text", "")).strip(),
             initial_template_parameters=[
                 str(item).strip()
                 for item in payload.get("initial_template_parameters", [])
                 if str(item).strip()
             ]
             if isinstance(payload.get("initial_template_parameters", []), list)
+            else [],
+            images=[
+                LeadImageAsset.from_payload(item)
+                for item in payload.get("images", [])
+                if isinstance(item, dict)
+            ]
+            if isinstance(payload.get("images", []), list)
             else [],
             lead_manager_forwarded_at=str(payload.get("lead_manager_forwarded_at", "")).strip(),
             lead_manager_reference=str(payload.get("lead_manager_reference", "")).strip(),
@@ -55,11 +101,23 @@ class LeadRuntimeMetadata:
 
     @property
     def has_initial_template(self) -> bool:
-        return bool(self.initial_template_name)
+        return bool(
+            self.initial_template_id
+            or self.initial_template_name
+            or self.initial_template_rendered_text
+        )
 
     @property
     def is_forwarded_to_lead_manager(self) -> bool:
         return bool(self.lead_manager_forwarded_at)
+
+    @property
+    def has_images(self) -> bool:
+        return bool(self.images)
+
+    @property
+    def image_public_urls(self) -> list[str]:
+        return [image.public_url for image in self.images if image.public_url]
 
 
 @dataclass(frozen=True)
@@ -152,3 +210,10 @@ class InboundWhatsAppMessage:
     phone_number_id: str
     contact_name: str
     timestamp: str
+    image_media_id: str = ""
+    image_mime_type: str = ""
+    image_caption: str = ""
+
+    @property
+    def has_text_or_media(self) -> bool:
+        return bool(self.text or self.image_media_id)

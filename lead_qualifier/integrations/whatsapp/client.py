@@ -30,6 +30,13 @@ class WhatsAppCloudClient:
             f"{phone_number_id}/messages"
         )
 
+    def _build_media_endpoint(self, media_id: str) -> str:
+        return (
+            f"{self._settings.whatsapp_api_base_url}/"
+            f"{self._settings.whatsapp_graph_version}/"
+            f"{media_id}"
+        )
+
     def _headers(self, access_token: str | None = None) -> dict[str, str]:
         resolved_token = (access_token or self._settings.whatsapp_access_token).strip()
         return {
@@ -146,6 +153,76 @@ class WhatsAppCloudClient:
             "template": template,
         }
         return self._post_message(phone_number_id, payload, access_token=access_token)
+
+    def get_media_metadata(
+        self,
+        *,
+        media_id: str,
+        access_token: str | None = None,
+    ) -> dict[str, Any]:
+        if not (access_token or self._settings.whatsapp_access_token):
+            raise RuntimeError("Token WhatsApp non configurato.")
+        cleaned_media_id = str(media_id or "").strip()
+        if not cleaned_media_id:
+            raise RuntimeError("media_id non valido.")
+
+        try:
+            response = httpx.get(
+                self._build_media_endpoint(cleaned_media_id),
+                headers=self._headers(access_token),
+                timeout=30.0,
+            )
+        except httpx.HTTPError as exc:
+            raise WhatsAppCloudError(str(exc), status_code=502) from exc
+
+        try:
+            data = response.json()
+        except ValueError:
+            data = {"raw": response.text}
+
+        if not response.is_success:
+            raise WhatsAppCloudError(
+                _format_meta_error(data, response.status_code),
+                status_code=response.status_code,
+                payload=data if isinstance(data, dict) else {"response": data},
+            )
+        if not isinstance(data, dict):
+            raise WhatsAppCloudError("Risposta media Meta non valida.", status_code=502)
+        return data
+
+    def download_media(
+        self,
+        *,
+        media_url: str,
+        access_token: str | None = None,
+    ) -> tuple[bytes, str]:
+        if not (access_token or self._settings.whatsapp_access_token):
+            raise RuntimeError("Token WhatsApp non configurato.")
+        cleaned_url = str(media_url or "").strip()
+        if not cleaned_url:
+            raise RuntimeError("media_url non valida.")
+
+        try:
+            response = httpx.get(
+                cleaned_url,
+                headers=self._headers(access_token),
+                timeout=30.0,
+            )
+        except httpx.HTTPError as exc:
+            raise WhatsAppCloudError(str(exc), status_code=502) from exc
+
+        if not response.is_success:
+            try:
+                payload: Any = response.json()
+            except ValueError:
+                payload = {"raw": response.text}
+            raise WhatsAppCloudError(
+                _format_meta_error(payload, response.status_code),
+                status_code=response.status_code,
+                payload=payload if isinstance(payload, dict) else {"response": payload},
+            )
+
+        return response.content, str(response.headers.get("Content-Type") or "").strip()
 
 
 def _format_meta_error(payload: object, status_code: int) -> str:

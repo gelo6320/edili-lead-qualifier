@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from lead_qualifier.domain.lead import StoredMessage
@@ -8,6 +9,9 @@ from lead_qualifier.services.lead_state import build_empty_lead_state, with_init
 from lead_qualifier.services.runtime_credentials import RuntimeCredentialsService
 from lead_qualifier.storage.bot_config_store import BotConfigStore
 from lead_qualifier.storage.protocol import LeadStore
+
+
+TEMPLATE_PLACEHOLDER_PATTERN = re.compile(r"\{\{(\d+)\}\}")
 
 
 class OutboundMessageService:
@@ -35,6 +39,12 @@ class OutboundMessageService:
         config = self._config_store.require(bot_id)
         access_token = self._runtime_credentials.get_whatsapp_access_token(config)
         resolved_language = language_code or config.template_language
+        template_body = (
+            config.default_template_body_text
+            if template_name.strip() == (config.default_template_name or "").strip()
+            else ""
+        )
+        rendered_text = _render_template_body(template_body, body_parameters)
         self._validate_template_parameters(
             config=config,
             template_name=template_name,
@@ -52,18 +62,24 @@ class OutboundMessageService:
         self._bootstrap_conversation(
             bot_id=config.id,
             wa_id=to,
+            template_id=config.default_template_id if template_name.strip() == (config.default_template_name or "").strip() else "",
             template_name=template_name,
             language_code=resolved_language,
+            template_body=template_body,
+            rendered_text=rendered_text,
             body_parameters=body_parameters,
         )
 
         template_payload = {
             "kind": "outbound_template",
+            "template_id": config.default_template_id if template_name.strip() == (config.default_template_name or "").strip() else "",
             "template_name": template_name,
             "language_code": resolved_language,
+            "template_body": template_body,
+            "rendered_text": rendered_text,
             "body_parameters": body_parameters,
         }
-        display = f"[template:{template_name}] {' | '.join(body_parameters)}".strip()
+        display = rendered_text or f"[template:{template_name}] {' | '.join(body_parameters)}".strip()
         self._store.save_message(
             config.id,
             to,
@@ -123,16 +139,22 @@ class OutboundMessageService:
         *,
         bot_id: str,
         wa_id: str,
+        template_id: str,
         template_name: str,
         language_code: str,
+        template_body: str,
+        rendered_text: str,
         body_parameters: list[str],
     ) -> None:
         config = self._config_store.require(bot_id)
         lead_state = self._store.get_lead_state(bot_id, wa_id) or build_empty_lead_state(config)
         lead_state = with_initial_template(
             lead_state,
+            template_id=template_id,
             template_name=template_name,
             language_code=language_code,
+            template_body=template_body,
+            rendered_text=rendered_text,
             body_parameters=body_parameters,
         )
         self._store.save_lead_state(bot_id, wa_id, lead_state)
@@ -184,3 +206,17 @@ def _build_default_template_parameters(config, *, full_name: str) -> list[str]:
     while len(parameters) < variable_count:
         parameters.append(config.company_name or "-")
     return parameters
+
+
+def _render_template_body(template_body: str, body_parameters: list[str]) -> str:
+    cleaned_body = str(template_body or "").strip()
+    if not cleaned_body:
+        return ""
+
+    def replace_placeholder(match: re.Match[str]) -> str:
+        placeholder_index = int(match.group(1)) - 1
+        if 0 <= placeholder_index < len(body_parameters):
+            return body_parameters[placeholder_index].strip()
+        return match.group(0)
+
+    return TEMPLATE_PLACEHOLDER_PATTERN.sub(replace_placeholder, cleaned_body).strip()

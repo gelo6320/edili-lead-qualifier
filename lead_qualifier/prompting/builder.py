@@ -102,6 +102,7 @@ def build_system_blocks(
         field_values=_format_field_values(config, lead_state),
         summary=lead_state.summary.strip() or "Nessun riassunto ancora disponibile.",
         conversation_bootstrap=_format_conversation_bootstrap(lead_state),
+        images_status=_format_images_status(lead_state),
         lead_manager_status=_format_lead_manager_status(lead_state),
     )
 
@@ -110,8 +111,8 @@ def build_system_blocks(
             f"{runtime_prompt}\n\n"
             "Knowledge base rilevante per questa richiesta:\n"
             f"{knowledge_context.strip()}\n\n"
-            "Usa questa knowledge base solo quando risponde in modo diretto alla domanda del lead. "
-            "Se il contesto non basta, non inventare dettagli."
+            "Usa questa knowledge base in priorita quando aiuta a rispondere in modo diretto o a collegare il lead "
+            "ai servizi reali dell'azienda. Se il contesto non basta, non inventare dettagli."
         )
 
     return [
@@ -160,10 +161,37 @@ def _format_conversation_bootstrap(lead_state: LeadState) -> str:
     if not metadata.has_initial_template:
         return "Nessun template iniziale registrato."
     parameters = ", ".join(metadata.initial_template_parameters) or "nessun parametro body"
+    identifier = metadata.initial_template_id or metadata.initial_template_name or "n/d"
+    rendered_text = metadata.initial_template_rendered_text.strip()
+    if rendered_text:
+        return (
+            f"Conversazione aperta con messaggio iniziale Meta id '{identifier}' "
+            f"(lingua '{metadata.initial_template_language or 'default'}'). "
+            f"Body template: {metadata.initial_template_body or 'n/d'}. "
+            f"Messaggio effettivamente inviato: {rendered_text}. "
+            f"Parametri: {parameters}."
+        )
     return (
-        f"Conversazione aperta con template Meta '{metadata.initial_template_name}' "
-        f"in lingua '{metadata.initial_template_language or 'default'}' con parametri: {parameters}."
+        f"Conversazione aperta con template Meta id '{identifier}' "
+        f"in lingua '{metadata.initial_template_language or 'default'}'. "
+        f"Body template: {metadata.initial_template_body or 'n/d'}. "
+        f"Parametri: {parameters}."
     )
+
+
+def _format_images_status(lead_state: LeadState) -> str:
+    metadata = lead_state.metadata
+    if not metadata.images:
+        return "Nessuna immagine ancora ricevuta."
+
+    lines = []
+    for index, image in enumerate(metadata.images, start=1):
+        caption = image.caption or "nessuna didascalia"
+        location = image.public_url or image.storage_path or image.media_id or "n/d"
+        lines.append(
+            f"{index}. mime={image.mime_type or 'n/d'}; caption={caption}; riferimento={location}"
+        )
+    return "\n".join(lines)
 
 
 def _format_lead_manager_status(lead_state: LeadState) -> str:

@@ -24,9 +24,9 @@ function createConstructionDefaults(): BotFieldConfig[] {
       key: 'immagini_situazione_attuale',
       label: 'Foto o immagini della situazione attuale',
       description:
-        'Richiedi foto o immagini utili per capire la situazione attuale e valutare il lavoro. Se arrivano, registra che sono state ricevute.',
+        'Chiedi molto presto se il lead ha gia foto utili. Se non le ha, chiedi se puo scattarle e inviarle. Se non riesce, registra non disponibili e continua senza bloccare la qualifica.',
       required: true,
-      options: [],
+      options: ['ricevute', 'da inviare', 'non disponibili'],
     },
     {
       key: 'tempistica',
@@ -83,7 +83,9 @@ export function createEmptyBotConfig(): BotConfig {
     meta_business_name: '',
     meta_waba_id: '',
     meta_waba_name: '',
+    default_template_id: '',
     default_template_name: '',
+    default_template_body_text: '',
     default_template_variable_count: 0,
     template_language: 'it',
     booking_url: '',

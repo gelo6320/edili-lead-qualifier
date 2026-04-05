@@ -28,6 +28,9 @@ def iter_inbound_messages(payload: dict[str, Any]) -> Iterator[InboundWhatsAppMe
                     phone_number_id=str(metadata.get("phone_number_id", "")).strip(),
                     contact_name=str(contact_names.get(wa_id, "")).strip(),
                     timestamp=str(message.get("timestamp", "")).strip(),
+                    image_media_id=str(message.get("image", {}).get("id", "")).strip(),
+                    image_mime_type=str(message.get("image", {}).get("mime_type", "")).strip(),
+                    image_caption=str(message.get("image", {}).get("caption", "")).strip(),
                 )
 
 
@@ -36,17 +39,7 @@ def _extract_text(message: dict[str, Any]) -> str:
     if message_type == "text":
         return str(message.get("text", {}).get("body", "")).strip()
     if message_type == "image":
-        caption = str(message.get("image", {}).get("caption", "")).strip()
-        if caption:
-            return (
-                "Il lead ha inviato una foto o immagine del lavoro. "
-                f"Didascalia del lead: {caption}. "
-                "Non puoi vedere il contenuto visivo, ma considera che il lead ha condiviso immagini utili per la valutazione."
-            )
-        return (
-            "Il lead ha inviato una foto o immagine del lavoro. "
-            "Non puoi vedere il contenuto visivo, ma considera che il lead ha condiviso immagini utili per la valutazione."
-        )
+        return str(message.get("image", {}).get("caption", "")).strip()
     if message_type == "button":
         return str(message.get("button", {}).get("text", "")).strip()
     if message_type == "interactive":

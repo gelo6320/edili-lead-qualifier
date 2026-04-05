@@ -22,7 +22,9 @@ export type BotConfig = {
   meta_business_name: string
   meta_waba_id: string
   meta_waba_name: string
+  default_template_id: string
   default_template_name: string
+  default_template_body_text: string
   default_template_variable_count: number
   template_language: string
   booking_url: string
@@ -90,6 +92,7 @@ export type MetaTemplateOption = {
   language: string
   status: string
   category: string
+  body_text: string
   body_variable_count: number
 }
 

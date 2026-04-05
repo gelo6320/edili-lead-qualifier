@@ -18,6 +18,7 @@ from lead_qualifier.integrations.whatsapp.client import WhatsAppCloudClient
 from lead_qualifier.services.agent_toolbox import LeadQualifierToolbox
 from lead_qualifier.services.cloudflare_crawl import CloudflareCrawlClient
 from lead_qualifier.services.inbound import InboundMessageService
+from lead_qualifier.services.lead_media import LeadMediaService
 from lead_qualifier.services.outbound import OutboundMessageService
 from lead_qualifier.services.supabase_admin import SupabaseAdminClient
 from lead_qualifier.services.meta_integration import MetaIntegrationService
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
     toolbox = LeadQualifierToolbox(lead_manager_client)
     qualifier = AnthropicLeadQualifier(settings, toolbox)
     whatsapp_client = WhatsAppCloudClient(settings)
+    lead_media = LeadMediaService(settings, whatsapp_client)
     runtime_credentials = RuntimeCredentialsService(settings, meta_integration)
     knowledge_base = KnowledgeBaseService(settings)
     crawl_client = CloudflareCrawlClient(settings)
@@ -63,6 +65,7 @@ def create_app() -> FastAPI:
         config_store,
         qualifier,
         whatsapp_client,
+        lead_media,
         runtime_credentials,
         website_personalization,
     )

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
@@ -161,7 +162,7 @@ class PostgresLeadStore:
                         lead_state.qualification_status,
                         json.dumps(lead_state.missing_fields, ensure_ascii=False),
                         lead_state.summary,
-                        json.dumps(lead_state.metadata.__dict__, ensure_ascii=False),
+                        json.dumps(asdict(lead_state.metadata), ensure_ascii=False),
                     ),
                 )
 

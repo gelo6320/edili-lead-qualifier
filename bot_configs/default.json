@@ -12,7 +12,9 @@
   ],
   "agent_name": "Giulia",
   "phone_number_id": "",
+  "default_template_id": "",
   "default_template_name": "lead_primo_contatto",
+  "default_template_body_text": "",
   "template_language": "it",
   "booking_url": "",
   "lead_manager_page_id": "",
@@ -40,9 +42,13 @@
     {
       "key": "immagini_situazione_attuale",
       "label": "Foto o immagini della situazione attuale",
-      "description": "Richiedi al lead foto o immagini utili per capire meglio la situazione attuale e valutare il lavoro. Se le immagini arrivano, registra che sono state ricevute.",
+      "description": "Chiedi molto presto se il lead ha gia foto utili. Se non le ha, chiedi se puo scattarle e inviarle. Se non riesce, registra non disponibili e continua senza bloccare la qualifica.",
       "required": true,
-      "options": []
+      "options": [
+        "ricevute",
+        "da inviare",
+        "non disponibili"
+      ]
     },
     {
       "key": "tempistica",

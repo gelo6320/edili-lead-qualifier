@@ -112,6 +112,9 @@ export function BotEditor({
   const selectedPage = getSelectedPage(bot, metaAssets)
   const phoneOptions = selectedWaba?.phone_numbers ?? []
   const templateOptions = selectedWaba?.templates ?? []
+  const selectedTemplate =
+    templateOptions.find((item) => item.id === bot.default_template_id) ?? null
+  const selectedTemplateBody = selectedTemplate?.body_text || bot.default_template_body_text
   const hasPageOptions = metaAssets.page_options.length > 0
 
   function patch<K extends keyof BotConfig>(key: K, value: BotConfig[K]) {
@@ -131,7 +134,9 @@ export function BotEditor({
         meta_waba_name: '',
         phone_number_id: '',
         whatsapp_display_phone_number: '',
+        default_template_id: '',
         default_template_name: '',
+        default_template_body_text: '',
         default_template_variable_count: 0,
         template_language: 'it',
       })
@@ -146,7 +151,7 @@ export function BotEditor({
     const nextPhone =
       nextWaba.phone_numbers.find((item) => item.id === bot.phone_number_id) ?? null
     const nextTemplate =
-      nextWaba.templates.find((item) => item.name === bot.default_template_name) ?? null
+      nextWaba.templates.find((item) => item.id === bot.default_template_id) ?? null
 
     patchMany({
       meta_business_id: nextWaba.business_id,
@@ -155,7 +160,9 @@ export function BotEditor({
       meta_waba_name: nextWaba.name,
       phone_number_id: nextPhone?.id ?? '',
       whatsapp_display_phone_number: nextPhone?.display_phone_number ?? '',
+      default_template_id: nextTemplate?.id ?? '',
       default_template_name: nextTemplate?.name ?? '',
+      default_template_body_text: nextTemplate?.body_text ?? '',
       default_template_variable_count: nextTemplate?.body_variable_count ?? 0,
       template_language: nextTemplate?.language ?? 'it',
     })
@@ -170,11 +177,13 @@ export function BotEditor({
     })
   }
 
-  function handleTemplateChange(templateName: string) {
+  function handleTemplateChange(templateId: string) {
     const nextTemplate =
-      templateOptions.find((item) => item.name === templateName) ?? null
+      templateOptions.find((item) => item.id === templateId) ?? null
     patchMany({
+      default_template_id: nextTemplate?.id ?? '',
       default_template_name: nextTemplate?.name ?? '',
+      default_template_body_text: nextTemplate?.body_text ?? '',
       default_template_variable_count: nextTemplate?.body_variable_count ?? 0,
       template_language: nextTemplate?.language ?? 'it',
     })
@@ -347,7 +356,7 @@ export function BotEditor({
             <select
               id="meta-template"
               className={SELECT_CLASS_NAME}
-              value={bot.default_template_name}
+              value={bot.default_template_id}
               onChange={(event) => handleTemplateChange(event.target.value)}
               disabled={!selectedWaba}
             >
@@ -355,7 +364,7 @@ export function BotEditor({
                 {selectedWaba ? 'Seleziona template' : 'Seleziona WABA'}
               </option>
               {templateOptions.map((template) => (
-                <option key={`${template.name}-${template.language}`} value={template.name}>
+                <option key={template.id || `${template.name}-${template.language}`} value={template.id}>
                   {template.name} - {template.language}
                 </option>
               ))}
@@ -391,6 +400,13 @@ export function BotEditor({
         {selectedPage?.qualifier_bot_id && selectedPage.qualifier_bot_id !== bot.id ? (
           <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             Pagina gia assegnata a {selectedPage.qualifier_bot_name || selectedPage.qualifier_bot_id}.
+          </div>
+        ) : null}
+
+        {selectedTemplateBody ? (
+          <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+            <div className="font-semibold text-foreground">Contenuto template nel contesto agente</div>
+            <p className="mt-2 whitespace-pre-wrap">{selectedTemplateBody}</p>
           </div>
         ) : null}
       </section>

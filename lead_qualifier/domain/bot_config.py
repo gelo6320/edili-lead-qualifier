@@ -71,7 +71,12 @@ class BotConfig(BaseModel):
     meta_business_name: str = Field(default="", description="Nome del business Meta selezionato.")
     meta_waba_id: str = Field(default="", description="WhatsApp Business Account ID selezionato.")
     meta_waba_name: str = Field(default="", description="Nome del WABA selezionato.")
+    default_template_id: str = Field(default="", description="ID template outbound predefinito.")
     default_template_name: str = Field(default="", description="Template outbound predefinito.")
+    default_template_body_text: str = Field(
+        default="",
+        description="Body testuale del template outbound usato per il bootstrap conversazionale.",
+    )
     default_template_variable_count: int = Field(
         default=0,
         description="Numero di variabili body richieste dal template di default.",
@@ -111,7 +116,9 @@ class BotConfig(BaseModel):
         "meta_business_name",
         "meta_waba_id",
         "meta_waba_name",
+        "default_template_id",
         "default_template_name",
+        "default_template_body_text",
         "template_language",
         "booking_url",
         "lead_manager_page_id",
@@ -169,3 +176,18 @@ class BotConfig(BaseModel):
     @property
     def default_status(self) -> str:
         return self.qualification_statuses[0]
+
+    @property
+    def image_field_keys(self) -> list[str]:
+        matching_keys: list[str] = []
+        for field in self.fields:
+            haystack = " ".join(
+                [
+                    field.key,
+                    field.label,
+                    field.description,
+                ]
+            ).lower()
+            if any(token in haystack for token in ("foto", "immagin", "photo", "image")):
+                matching_keys.append(field.key)
+        return matching_keys

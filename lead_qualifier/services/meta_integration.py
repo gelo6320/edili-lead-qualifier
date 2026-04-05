@@ -582,6 +582,7 @@ class MetaIntegrationService:
                         "language": _clean(item.get("language")) or "it",
                         "status": status,
                         "category": _clean(item.get("category")),
+                        "body_text": _extract_template_body_text(item.get("components")),
                         "body_variable_count": _infer_template_variable_count(item.get("components")),
                     }
                 )
@@ -737,6 +738,18 @@ def _infer_template_variable_count(components: object) -> int:
         for match in PLACEHOLDER_PATTERN.findall(_clean(component.get("text"))):
             max_placeholder = max(max_placeholder, int(match))
     return max_placeholder
+
+
+def _extract_template_body_text(components: object) -> str:
+    if not isinstance(components, list):
+        return ""
+    for component in components:
+        if not isinstance(component, dict):
+            continue
+        if _clean(component.get("type")).upper() != "BODY":
+            continue
+        return _clean(component.get("text"))
+    return ""
 
 
 def _extract_rpc_scalar(payload: Any, key: str) -> str:

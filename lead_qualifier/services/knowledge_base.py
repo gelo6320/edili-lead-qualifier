@@ -26,6 +26,19 @@ def _normalize_markdown(markdown: str) -> str:
     return text.strip()
 
 
+def _tokenize_query(query: str) -> list[str]:
+    raw_tokens = re.split(r"[^0-9A-Za-zÀ-ÖØ-öø-ÿ]+", query)
+    deduped_tokens: list[str] = []
+    seen: set[str] = set()
+    for token in raw_tokens:
+        cleaned = token.strip().lower()
+        if len(cleaned) < 3 or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        deduped_tokens.append(cleaned)
+    return deduped_tokens
+
+
 def _split_markdown(markdown: str) -> list[str]:
     text = _normalize_markdown(markdown)
     if not text:
@@ -159,6 +172,45 @@ class KnowledgeBaseService:
                     LIMIT %s
                     """,
                     (cleaned_query, bot_id, cleaned_query, max(limit, 1)),
+                )
+                rows = cursor.fetchall()
+                if rows:
+                    return rows or []
+
+                tokens = _tokenize_query(cleaned_query)
+                if not tokens:
+                    return []
+                like_patterns = [f"%{token}%" for token in tokens]
+                score_sql = " + ".join(
+                    [
+                        f"(case when lower(page_title) like %s then 3 else 0 end)"
+                        f" + (case when lower(chunk_text) like %s then 1 else 0 end)"
+                        for _ in tokens
+                    ]
+                )
+                score_params: list[Any] = []
+                for pattern in like_patterns:
+                    score_params.extend([pattern, pattern])
+                filter_sql = " OR ".join(
+                    ["lower(page_title) like %s OR lower(chunk_text) like %s" for _ in tokens]
+                )
+                filter_params: list[Any] = []
+                for pattern in like_patterns:
+                    filter_params.extend([pattern, pattern])
+                cursor.execute(
+                    f"""
+                    SELECT
+                        page_url,
+                        page_title,
+                        chunk_text,
+                        ({score_sql}) AS rank
+                    FROM public.bot_knowledge_chunks
+                    WHERE bot_id = %s
+                      AND ({filter_sql})
+                    ORDER BY rank DESC, id ASC
+                    LIMIT %s
+                    """,
+                    tuple(score_params + [bot_id] + filter_params + [max(limit, 1)]),
                 )
                 rows = cursor.fetchall()
         return rows or []

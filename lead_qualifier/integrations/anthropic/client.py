@@ -141,14 +141,22 @@ class AnthropicLeadQualifier:
 
 
 def _to_anthropic_message(message: StoredMessage) -> dict[str, Any] | None:
-    if message.role == "assistant":
-        try:
-            payload = json.loads(message.api_content)
-        except json.JSONDecodeError:
-            return {"role": message.role, "content": message.api_content}
-        if payload.get("kind") == "outbound_template":
-            return None
+    try:
+        payload = json.loads(message.api_content)
+    except json.JSONDecodeError:
         return {"role": message.role, "content": message.api_content}
+
+    if message.role == "assistant":
+        if isinstance(payload, dict) and payload.get("kind") == "outbound_template":
+            return None
+        if isinstance(payload, dict) and isinstance(payload.get("content"), list):
+            return {"role": message.role, "content": payload["content"]}
+        return {"role": message.role, "content": message.api_content}
+
+    if isinstance(payload, list):
+        return {"role": message.role, "content": payload}
+    if isinstance(payload, dict) and isinstance(payload.get("content"), list):
+        return {"role": message.role, "content": payload["content"]}
     return {"role": message.role, "content": message.api_content}
 
 
