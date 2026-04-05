@@ -123,6 +123,8 @@ def _build_custom_fields(
 ) -> dict[str, Any]:
     custom_fields: dict[str, Any] = {
         "wa_id": wa_id,
+        "qualifier_bot_id": config.id,
+        "qualifier_bot_name": config.name,
         "qualification_status": lead_state.qualification_status,
         "summary": lead_state.summary,
         "manager_note": manager_note.strip(),

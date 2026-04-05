@@ -80,10 +80,15 @@ def build_internal_router(
     @router.get("/qualifier/bots")
     async def list_internal_qualifier_bots(
         owner_user_id: str,
+        owner_email: str = "",
         x_api_key: str | None = Header(default=None),
     ) -> list[dict]:
         _require_lead_manager_api_key(x_api_key)
-        cleaned_owner_user_id = owner_user_id.strip()
+        allowed_owner_ids = set(
+            meta_integration.resolve_owner_user_ids(owner_user_id, owner_email)
+        )
+        if not allowed_owner_ids:
+            return []
         return [
             {
                 "id": config.id,
@@ -96,7 +101,7 @@ def build_internal_router(
                 "template_language": config.template_language,
             }
             for config in config_store.list_configs()
-            if config.owner_user_id == cleaned_owner_user_id
+            if not allowed_owner_ids or config.owner_user_id in allowed_owner_ids
         ]
 
     @router.post("/qualifier/page-link")
@@ -106,14 +111,24 @@ def build_internal_router(
     ) -> dict:
         _require_lead_manager_api_key(x_api_key)
         owner_user_id = str(payload.get("owner_user_id") or "").strip()
+        owner_email = str(payload.get("owner_email") or "").strip().lower()
         bot_id = str(payload.get("bot_id") or "").strip()
         page_id = str(payload.get("page_id") or "").strip()
         page_name = str(payload.get("page_name") or "").strip()
-        if not owner_user_id or not bot_id:
-            raise HTTPException(status_code=400, detail="owner_user_id e bot_id sono obbligatori.")
+        if (not owner_user_id and not owner_email) or not bot_id:
+            raise HTTPException(status_code=400, detail="owner_user_id o owner_email, e bot_id sono obbligatori.")
 
         config = config_store.get(bot_id)
-        if config is None or (config.owner_user_id and config.owner_user_id != owner_user_id):
+        allowed_owner_ids = set(
+            meta_integration.resolve_owner_user_ids(owner_user_id, owner_email)
+        )
+        if not allowed_owner_ids:
+            raise HTTPException(status_code=404, detail="Bot non trovato.")
+        if config is None or (
+            allowed_owner_ids
+            and config.owner_user_id
+            and config.owner_user_id not in allowed_owner_ids
+        ):
             raise HTTPException(status_code=404, detail="Bot non trovato.")
 
         saved = config_store.upsert(

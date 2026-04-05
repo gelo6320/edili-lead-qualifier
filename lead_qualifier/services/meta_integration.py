@@ -53,6 +53,44 @@ class MetaIntegrationService:
         self._settings = settings
         self._admin = admin
 
+    def resolve_owner_user_ids(self, owner_user_id: str = "", owner_email: str = "") -> list[str]:
+        resolved_ids: list[str] = []
+        cleaned_owner_user_id = _clean(owner_user_id)
+        if cleaned_owner_user_id:
+            resolved_ids.append(cleaned_owner_user_id)
+
+        cleaned_owner_email = _clean(owner_email).lower()
+        if cleaned_owner_email and self._admin.is_configured:
+            try:
+                payload = self._admin.rpc(
+                    "resolve_owner_user_ids_by_email",
+                    {"p_email": cleaned_owner_email},
+                )
+            except SupabaseAdminError as exc:
+                if not _is_schema_missing_error(exc):
+                    raise MetaIntegrationError(str(exc)) from exc
+            else:
+                if isinstance(payload, list):
+                    for item in payload:
+                        if not isinstance(item, dict):
+                            continue
+                        owner_id = _clean(item.get("owner_user_id"))
+                        if owner_id:
+                            resolved_ids.append(owner_id)
+                elif isinstance(payload, dict):
+                    owner_id = _clean(payload.get("owner_user_id"))
+                    if owner_id:
+                        resolved_ids.append(owner_id)
+
+        deduped_ids: list[str] = []
+        seen_ids: set[str] = set()
+        for owner_id in resolved_ids:
+            if owner_id in seen_ids:
+                continue
+            deduped_ids.append(owner_id)
+            seen_ids.add(owner_id)
+        return deduped_ids
+
     def build_oauth_authorize_url(self, owner_user_id: str) -> str:
         if not self._settings.meta_app_id or not self._settings.meta_app_secret:
             raise MetaIntegrationError("META_APP_ID o META_APP_SECRET non configurate.")
@@ -152,8 +190,8 @@ class MetaIntegrationService:
             raise MetaIntegrationError("Token Meta non disponibile in Vault.")
         return secret
 
-    def list_assets(self, owner_user_id: str) -> dict[str, Any]:
-        page_options = self.list_page_options(owner_user_id)
+    def list_assets(self, owner_user_id: str, owner_email: str = "") -> dict[str, Any]:
+        page_options = self.list_page_options(owner_user_id, owner_email=owner_email)
         integration = self.get_integration(owner_user_id)
         if not integration:
             return {
@@ -197,10 +235,13 @@ class MetaIntegrationService:
             "waba_options": waba_options,
         }
 
-    def list_page_options(self, owner_user_id: str) -> list[dict[str, str]]:
+    def list_page_options(self, owner_user_id: str, owner_email: str = "") -> list[dict[str, str]]:
         if self._settings.lead_manager_api_url:
             try:
-                return self._list_page_options_via_lead_manager(owner_user_id)
+                return self._list_page_options_via_lead_manager(
+                    owner_user_id,
+                    owner_email=owner_email,
+                )
             except MetaIntegrationError:
                 if not self._admin.is_configured:
                     raise
@@ -252,10 +293,19 @@ class MetaIntegrationService:
             )
         return options
 
-    def assign_page_to_bot(self, *, owner_user_id: str, page_id: str, bot_id: str, bot_name: str) -> None:
+    def assign_page_to_bot(
+        self,
+        *,
+        owner_user_id: str,
+        page_id: str,
+        bot_id: str,
+        bot_name: str,
+        owner_email: str = "",
+    ) -> None:
         if self._settings.lead_manager_api_url:
             self._assign_page_to_bot_via_lead_manager(
                 owner_user_id=owner_user_id,
+                owner_email=owner_email,
                 page_id=page_id,
                 bot_id=bot_id,
                 bot_name=bot_name,
@@ -276,10 +326,17 @@ class MetaIntegrationService:
                 raise MetaIntegrationError(self._migration_missing_message()) from exc
             raise MetaIntegrationError(str(exc)) from exc
 
-    def clear_page_assignment(self, *, owner_user_id: str, page_id: str) -> None:
+    def clear_page_assignment(
+        self,
+        *,
+        owner_user_id: str,
+        page_id: str,
+        owner_email: str = "",
+    ) -> None:
         if self._settings.lead_manager_api_url:
             self._clear_page_assignment_via_lead_manager(
                 owner_user_id=owner_user_id,
+                owner_email=owner_email,
                 page_id=page_id,
             )
             return
@@ -366,11 +423,19 @@ class MetaIntegrationService:
             raise MetaIntegrationError(str(payload))
         return payload
 
-    def _list_page_options_via_lead_manager(self, owner_user_id: str) -> list[dict[str, str]]:
+    def _list_page_options_via_lead_manager(
+        self,
+        owner_user_id: str,
+        *,
+        owner_email: str = "",
+    ) -> list[dict[str, str]]:
         payload = self._lead_manager_request(
             "GET",
             "/api/internal/qualifier/pages",
-            params={"owner_user_id": owner_user_id},
+            params={
+                "owner_user_id": owner_user_id,
+                "owner_email": owner_email,
+            },
         )
         if not isinstance(payload, list):
             raise MetaIntegrationError("Risposta lead-manager non valida.")
@@ -390,6 +455,7 @@ class MetaIntegrationService:
         self,
         *,
         owner_user_id: str,
+        owner_email: str = "",
         page_id: str,
         bot_id: str,
         bot_name: str,
@@ -399,6 +465,7 @@ class MetaIntegrationService:
             "/api/internal/qualifier/assignment",
             json_body={
                 "owner_user_id": owner_user_id,
+                "owner_email": owner_email,
                 "page_id": page_id,
                 "bot_id": bot_id,
                 "bot_name": bot_name,
@@ -409,6 +476,7 @@ class MetaIntegrationService:
         self,
         *,
         owner_user_id: str,
+        owner_email: str = "",
         page_id: str,
     ) -> None:
         self._lead_manager_request(
@@ -416,6 +484,7 @@ class MetaIntegrationService:
             "/api/internal/qualifier/assignment",
             json_body={
                 "owner_user_id": owner_user_id,
+                "owner_email": owner_email,
                 "page_id": page_id,
             },
         )
