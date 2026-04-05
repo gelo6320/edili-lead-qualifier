@@ -5,6 +5,14 @@ const DEFAULT_STATUSES = ['new', 'in_progress', 'qualified', 'follow_up']
 function createConstructionDefaults(): BotFieldConfig[] {
   return [
     {
+      key: 'tipo_lavoro',
+      label: 'Tipo di lavoro',
+      description:
+        'Tipo di intervento richiesto dal lead, ad esempio ristrutturazione, facciata, tetto, bagno o manutenzione.',
+      required: true,
+      options: [],
+    },
+    {
       key: 'zona_lavoro',
       label: 'Zona del lavoro',
       description:
@@ -13,10 +21,10 @@ function createConstructionDefaults(): BotFieldConfig[] {
       options: [],
     },
     {
-      key: 'tipo_lavoro',
-      label: 'Tipo di lavoro richiesto',
+      key: 'tempistica',
+      label: 'Tempistica',
       description:
-        'Tipo di intervento richiesto dal lead, ad esempio ristrutturazione, cappotto, tetto, bagno, facciata o impianti.',
+        'Quando il lead vuole eseguire il lavoro, con data, urgenza o finestra temporale.',
       required: true,
       options: [],
     },
@@ -29,27 +37,20 @@ function createConstructionDefaults(): BotFieldConfig[] {
       options: ['ricevute', 'da inviare', 'non disponibili'],
     },
     {
-      key: 'tempistica',
-      label: 'Tempistica',
+      key: 'orario_preferito_richiamo',
+      label: 'Ora preferita per il richiamo',
       description:
-        'Quando il lead vuole eseguire il lavoro, con data, urgenza o finestra temporale.',
+        'Orario o fascia oraria preferita dal lead per essere richiamato.',
       required: true,
       options: [],
     },
     {
-      key: 'budget_indicativo',
-      label: 'Budget indicativo',
-      description: 'Budget o fascia di spesa indicativa, anche approssimativa.',
+      key: 'disponibilita_sopralluogo',
+      label: 'Disponibilita per il sopralluogo',
+      description:
+        'Giorni o fasce orarie in cui il lead e disponibile per fissare il sopralluogo.',
       required: true,
       options: [],
-    },
-    {
-      key: 'disponibile_chiamata',
-      label: 'Disponibilita alla chiamata',
-      description:
-        'Disponibilita del lead a fissare una chiamata per approfondire e organizzare il sopralluogo.',
-      required: true,
-      options: ['si', 'no', 'forse'],
     },
   ]
 }
