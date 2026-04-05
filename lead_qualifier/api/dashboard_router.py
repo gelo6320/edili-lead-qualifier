@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
@@ -201,7 +202,24 @@ def build_dashboard_api_router(
         if config_store.get(bot_id) is None:
             raise HTTPException(status_code=404, detail="Bot non trovato.")
         messages = lead_store.list_messages(bot_id, wa_id)
-        return [{"role": m.role, "display": m.display} for m in messages]
+        lead_state = lead_store.get_lead_state(bot_id, wa_id)
+        fallback_image_urls = lead_state.metadata.image_public_urls if lead_state else []
+        fallback_index = 0
+        response: list[dict] = []
+        for message in messages:
+            image_urls, image_block_count = _extract_message_images(message.api_content)
+            if image_block_count:
+                if not image_urls:
+                    image_urls = fallback_image_urls[fallback_index : fallback_index + image_block_count]
+                fallback_index += image_block_count
+            response.append(
+                {
+                    "role": message.role,
+                    "display": message.display,
+                    "images": image_urls,
+                }
+            )
+        return response
 
     @router.delete("/bots/{bot_id}/leads/{wa_id}")
     async def delete_lead_conversation(bot_id: str, wa_id: str, request: Request) -> dict:
@@ -277,6 +295,63 @@ def build_dashboard_api_router(
         }
 
     return router
+
+
+def _extract_message_images(api_content: str) -> tuple[list[str], int]:
+    try:
+        payload = json.loads(api_content)
+    except json.JSONDecodeError:
+        return [], 0
+
+    blocks: list[dict] = []
+    image_urls: list[str] = []
+
+    if isinstance(payload, list):
+        blocks = [block for block in payload if isinstance(block, dict)]
+    elif isinstance(payload, dict):
+        content = payload.get("content")
+        if isinstance(content, list):
+            blocks = [block for block in content if isinstance(block, dict)]
+        images = payload.get("images")
+        if isinstance(images, list):
+            for image in images:
+                if isinstance(image, str) and image.strip():
+                    image_urls.append(image.strip())
+                elif isinstance(image, dict):
+                    url = str(image.get("url", "")).strip()
+                    if url:
+                        image_urls.append(url)
+
+    image_block_count = sum(
+        1
+        for block in blocks
+        if str(block.get("type", "")).strip() == "image"
+    )
+    if not image_urls:
+        image_urls = _extract_image_urls_from_blocks(blocks)
+    return image_urls, image_block_count
+
+
+def _extract_image_urls_from_blocks(blocks: list[dict]) -> list[str]:
+    image_urls: list[str] = []
+    for block in blocks:
+        if str(block.get("type", "")).strip() != "image":
+            continue
+        source = block.get("source")
+        if not isinstance(source, dict):
+            continue
+        source_type = str(source.get("type", "")).strip()
+        if source_type == "url":
+            url = str(source.get("url", "")).strip()
+            if url:
+                image_urls.append(url)
+            continue
+        if source_type == "base64":
+            media_type = str(source.get("media_type", "")).strip() or "image/jpeg"
+            data = str(source.get("data", "")).strip()
+            if data:
+                image_urls.append(f"data:{media_type};base64,{data}")
+    return image_urls
 
 
 def _sync_page_assignment(

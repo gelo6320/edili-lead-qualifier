@@ -16,11 +16,23 @@ class StoredMessage:
         return StoredMessage(role="user", display=text, api_content=text)
 
     @staticmethod
-    def user_blocks(display: str, content_blocks: list[dict[str, Any]]) -> "StoredMessage":
+    def user_blocks(
+        display: str,
+        content_blocks: list[dict[str, Any]],
+        *,
+        images: list[dict[str, str]] | None = None,
+    ) -> "StoredMessage":
+        payload: dict[str, Any] = {
+            "kind": "user_multimodal",
+            "content": _strip_cache_control(content_blocks),
+        }
+        normalized_images = _normalize_message_images(images)
+        if normalized_images:
+            payload["images"] = normalized_images
         return StoredMessage(
             role="user",
             display=display,
-            api_content=json.dumps(content_blocks, ensure_ascii=False),
+            api_content=json.dumps(payload, ensure_ascii=False),
         )
 
     @staticmethod
@@ -217,3 +229,37 @@ class InboundWhatsAppMessage:
     @property
     def has_text_or_media(self) -> bool:
         return bool(self.text or self.image_media_id)
+
+
+def _strip_cache_control(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_strip_cache_control(item) for item in value]
+    if isinstance(value, dict):
+        return {
+            key: _strip_cache_control(item)
+            for key, item in value.items()
+            if key != "cache_control"
+        }
+    return value
+
+
+def _normalize_message_images(images: list[dict[str, str]] | None) -> list[dict[str, str]]:
+    if not images:
+        return []
+
+    normalized: list[dict[str, str]] = []
+    for image in images:
+        if not isinstance(image, dict):
+            continue
+        url = str(image.get("url", "")).strip()
+        if not url:
+            continue
+        normalized_image = {"url": url}
+        mime_type = str(image.get("mime_type", "")).strip()
+        caption = str(image.get("caption", "")).strip()
+        if mime_type:
+            normalized_image["mime_type"] = mime_type
+        if caption:
+            normalized_image["caption"] = caption
+        normalized.append(normalized_image)
+    return normalized

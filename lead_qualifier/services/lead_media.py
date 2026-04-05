@@ -145,7 +145,6 @@ class LeadMediaService:
                     "media_type": mime_type,
                     "data": base64.b64encode(raw_bytes).decode("ascii"),
                 },
-                "cache_control": {"type": "ephemeral", "ttl": "1h"},
             },
         ]
         return LeadMediaProcessingResult(

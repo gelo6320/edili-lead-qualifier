@@ -150,13 +150,13 @@ def _to_anthropic_message(message: StoredMessage) -> dict[str, Any] | None:
         if isinstance(payload, dict) and payload.get("kind") == "outbound_template":
             return None
         if isinstance(payload, dict) and isinstance(payload.get("content"), list):
-            return {"role": message.role, "content": payload["content"]}
+            return {"role": message.role, "content": _sanitize_content_blocks(payload["content"])}
         return {"role": message.role, "content": message.api_content}
 
     if isinstance(payload, list):
-        return {"role": message.role, "content": payload}
+        return {"role": message.role, "content": _sanitize_content_blocks(payload)}
     if isinstance(payload, dict) and isinstance(payload.get("content"), list):
-        return {"role": message.role, "content": payload["content"]}
+        return {"role": message.role, "content": _sanitize_content_blocks(payload["content"])}
     return {"role": message.role, "content": message.api_content}
 
 
@@ -202,3 +202,24 @@ def _extract_usage(message: Any) -> dict[str, int]:
 def _accumulate_usage(target: dict[str, int], usage: dict[str, int]) -> None:
     for key, value in usage.items():
         target[key] = target.get(key, 0) + value
+
+
+def _sanitize_content_blocks(blocks: list[Any]) -> list[dict[str, Any]]:
+    sanitized: list[dict[str, Any]] = []
+    for block in blocks:
+        normalized = _strip_cache_control(block)
+        if isinstance(normalized, dict):
+            sanitized.append(normalized)
+    return sanitized
+
+
+def _strip_cache_control(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_strip_cache_control(item) for item in value]
+    if isinstance(value, dict):
+        return {
+            key: _strip_cache_control(item)
+            for key, item in value.items()
+            if key != "cache_control"
+        }
+    return value

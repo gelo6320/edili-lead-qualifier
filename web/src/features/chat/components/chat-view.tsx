@@ -296,7 +296,25 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                                 : 'rounded-br-sm bg-primary text-primary-foreground',
                             )}
                           >
-                            {msg.display}
+                            <div className="space-y-2">
+                              {msg.images.map((imageUrl, imageIndex) => (
+                                <a
+                                  key={`${i}-${imageIndex}-${imageUrl}`}
+                                  href={imageUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="block overflow-hidden rounded-xl"
+                                >
+                                  <img
+                                    src={imageUrl}
+                                    alt="Immagine inviata dal lead"
+                                    className="max-h-80 w-full rounded-xl object-cover"
+                                    loading="lazy"
+                                  />
+                                </a>
+                              ))}
+                              {msg.display ? <p>{msg.display}</p> : null}
+                            </div>
                           </div>
                         </div>
                       </div>

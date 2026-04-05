@@ -162,6 +162,15 @@ class InboundMessageService:
                 StoredMessage.user_blocks(
                     " ".join(display_parts).strip(),
                     media_result.anthropic_blocks,
+                    images=[
+                        {
+                            "url": media_result.image_asset.public_url,
+                            "mime_type": media_result.image_asset.mime_type,
+                            "caption": media_result.image_asset.caption,
+                        }
+                    ]
+                    if media_result.image_asset and media_result.image_asset.public_url
+                    else None,
                 ),
                 next_lead_state,
             )

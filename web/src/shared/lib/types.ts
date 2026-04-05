@@ -76,6 +76,7 @@ export type LeadSummary = {
 export type ChatMessage = {
   role: 'user' | 'assistant'
   display: string
+  images: string[]
 }
 
 export type LeadManagerPageOption = {
