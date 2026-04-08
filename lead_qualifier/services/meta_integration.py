@@ -6,6 +6,7 @@ import hmac
 import json
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import urlencode
@@ -18,6 +19,7 @@ from lead_qualifier.services.supabase_admin import SupabaseAdminClient, Supabase
 
 STATE_TTL_SECONDS = 900
 PLACEHOLDER_PATTERN = re.compile(r"\{\{(\d+)\}\}")
+META_ASSETS_MAX_WORKERS = 8
 
 
 class MetaIntegrationError(RuntimeError):
@@ -46,6 +48,10 @@ def _is_schema_missing_error(exc: Exception) -> bool:
             "function ",
         )
     )
+
+
+def _bounded_workers(size: int) -> int:
+    return max(1, min(META_ASSETS_MAX_WORKERS, size or 1))
 
 
 class MetaIntegrationService:
@@ -184,8 +190,10 @@ class MetaIntegrationService:
         return secret
 
     def list_assets(self, owner_user_id: str, owner_email: str = "") -> dict[str, Any]:
-        page_options = self.list_page_options(owner_user_id, owner_email=owner_email)
-        integration = self.get_integration(owner_user_id)
+        page_options, integration = self._load_assets_context(
+            owner_user_id,
+            owner_email=owner_email,
+        )
         if not integration:
             return {
                 "connected": False,
@@ -194,28 +202,9 @@ class MetaIntegrationService:
                 "waba_options": [],
             }
 
-        access_token = self.get_access_token(owner_user_id)
+        access_token = self._get_access_token_from_integration(integration)
         businesses = self._list_businesses(access_token)
-        waba_options: list[dict[str, Any]] = []
-        seen_waba_ids: set[str] = set()
-        for business in businesses:
-            for waba in self._list_business_wabas(access_token, business["id"]):
-                waba_id = _clean(waba.get("id"))
-                if not waba_id or waba_id in seen_waba_ids:
-                    continue
-                seen_waba_ids.add(waba_id)
-                phone_numbers = self._list_phone_numbers(access_token, waba_id)
-                templates = self._list_templates(access_token, waba_id)
-                waba_options.append(
-                    {
-                        "id": waba_id,
-                        "name": _clean(waba.get("name")) or waba_id,
-                        "business_id": business["id"],
-                        "business_name": business["name"],
-                        "phone_numbers": phone_numbers,
-                        "templates": templates,
-                    }
-                )
+        waba_options = self._list_waba_options(access_token, businesses)
 
         return {
             "connected": True,
@@ -226,6 +215,113 @@ class MetaIntegrationService:
             },
             "page_options": page_options,
             "waba_options": waba_options,
+        }
+
+    def _load_assets_context(
+        self,
+        owner_user_id: str,
+        *,
+        owner_email: str = "",
+    ) -> tuple[list[dict[str, str]], dict[str, Any]]:
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            page_options_future = executor.submit(
+                self.list_page_options,
+                owner_user_id,
+                owner_email,
+            )
+            integration_future = executor.submit(self.get_integration, owner_user_id)
+            page_options = page_options_future.result()
+            integration = integration_future.result()
+        return page_options, integration
+
+    def _get_access_token_from_integration(self, integration: dict[str, Any]) -> str:
+        secret_id = _clean(integration.get("access_token_secret_id"))
+        if not secret_id:
+            raise MetaIntegrationError("Facebook non collegato per questo utente.")
+        secret = self._read_secret(secret_id)
+        if not secret:
+            raise MetaIntegrationError("Token Meta non disponibile in Vault.")
+        return secret
+
+    def _list_waba_options(
+        self,
+        access_token: str,
+        businesses: list[dict[str, str]],
+    ) -> list[dict[str, Any]]:
+        business_waba_pairs = self._list_business_waba_pairs(access_token, businesses)
+        if not business_waba_pairs:
+            return []
+
+        seen_waba_ids: set[str] = set()
+        unique_pairs: list[tuple[dict[str, str], dict[str, str]]] = []
+        for business, waba in business_waba_pairs:
+            waba_id = _clean(waba.get("id"))
+            if not waba_id or waba_id in seen_waba_ids:
+                continue
+            seen_waba_ids.add(waba_id)
+            unique_pairs.append((business, waba))
+
+        waba_options: list[dict[str, Any]] = []
+        with ThreadPoolExecutor(max_workers=_bounded_workers(len(unique_pairs))) as executor:
+            future_to_waba = {
+                executor.submit(
+                    self._build_waba_option,
+                    access_token,
+                    business,
+                    waba,
+                ): _clean(waba.get("id"))
+                for business, waba in unique_pairs
+            }
+            for future in as_completed(future_to_waba):
+                waba_options.append(future.result())
+
+        waba_options.sort(
+            key=lambda item: (
+                item["business_name"],
+                item["name"],
+                item["id"],
+            )
+        )
+        return waba_options
+
+    def _list_business_waba_pairs(
+        self,
+        access_token: str,
+        businesses: list[dict[str, str]],
+    ) -> list[tuple[dict[str, str], dict[str, str]]]:
+        pairs: list[tuple[dict[str, str], dict[str, str]]] = []
+        with ThreadPoolExecutor(max_workers=_bounded_workers(len(businesses))) as executor:
+            future_to_business = {
+                executor.submit(
+                    self._list_business_wabas,
+                    access_token,
+                    business["id"],
+                ): business
+                for business in businesses
+                if _clean(business.get("id"))
+            }
+            for future in as_completed(future_to_business):
+                business = future_to_business[future]
+                for waba in future.result():
+                    pairs.append((business, waba))
+        return pairs
+
+    def _build_waba_option(
+        self,
+        access_token: str,
+        business: dict[str, str],
+        waba: dict[str, str],
+    ) -> dict[str, Any]:
+        waba_id = _clean(waba.get("id"))
+        phone_numbers = self._list_phone_numbers(access_token, waba_id)
+        templates = self._list_templates(access_token, waba_id)
+        return {
+            "id": waba_id,
+            "name": _clean(waba.get("name")) or waba_id,
+            "business_id": business["id"],
+            "business_name": business["name"],
+            "phone_numbers": phone_numbers,
+            "templates": templates,
         }
 
     def list_page_options(self, owner_user_id: str, owner_email: str = "") -> list[dict[str, str]]:
@@ -509,16 +605,27 @@ class MetaIntegrationService:
 
     def _list_business_wabas(self, access_token: str, business_id: str) -> list[dict[str, str]]:
         results: list[dict[str, str]] = []
-        for edge in (
+        edges = (
             "owned_whatsapp_business_accounts",
             "client_whatsapp_business_accounts",
-        ):
-            payload = self._graph_get(f"{business_id}/{edge}", access_token, params={"fields": "id,name"})
-            for item in payload.get("data", []):
-                waba_id = _clean(item.get("id"))
-                if not waba_id:
-                    continue
-                results.append({"id": waba_id, "name": _clean(item.get("name")) or waba_id})
+        )
+        with ThreadPoolExecutor(max_workers=len(edges)) as executor:
+            future_to_edge = {
+                executor.submit(
+                    self._graph_get,
+                    f"{business_id}/{edge}",
+                    access_token,
+                    params={"fields": "id,name"},
+                ): edge
+                for edge in edges
+            }
+            for future in as_completed(future_to_edge):
+                payload = future.result()
+                for item in payload.get("data", []):
+                    waba_id = _clean(item.get("id"))
+                    if not waba_id:
+                        continue
+                    results.append({"id": waba_id, "name": _clean(item.get("name")) or waba_id})
         return results
 
     def _list_phone_numbers(self, access_token: str, waba_id: str) -> list[dict[str, str]]:

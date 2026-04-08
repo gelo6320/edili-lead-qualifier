@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+from functools import partial
+
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
+from starlette.concurrency import run_in_threadpool
 
 from dataclasses import asdict
 
@@ -62,10 +65,16 @@ def build_dashboard_api_router(
     @router.get("/bots")
     async def list_bots(request: Request) -> list[dict]:
         user = await require_dashboard_user(request, settings)
+        configs = await run_in_threadpool(
+            partial(
+                config_store.list_configs_filtered,
+                [user.id],
+                include_unowned=True,
+            )
+        )
         return [
             config.model_dump(mode="json")
-            for config in config_store.list_configs()
-            if not config.owner_user_id or config.owner_user_id == user.id
+            for config in configs
         ]
 
     @router.get("/bots/{bot_id}")
@@ -266,7 +275,13 @@ def build_dashboard_api_router(
             raise HTTPException(status_code=503, detail="Integrazione Meta non disponibile.")
         user = await require_dashboard_user(request, settings)
         try:
-            return meta_integration.list_assets(user.id, owner_email=user.email)
+            return await run_in_threadpool(
+                partial(
+                    meta_integration.list_assets,
+                    user.id,
+                    owner_email=user.email,
+                )
+            )
         except Exception as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 

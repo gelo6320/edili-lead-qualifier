@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from functools import partial
+
 from fastapi import APIRouter, Header, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 
 from lead_qualifier.api.schemas import BridgeQualificationRequest
 from lead_qualifier.core.settings import Settings
@@ -109,6 +112,13 @@ def build_internal_router(
         )
         if not allowed_owner_ids:
             return []
+        configs = await run_in_threadpool(
+            partial(
+                config_store.list_configs_filtered,
+                list(allowed_owner_ids),
+                include_unowned=False,
+            )
+        )
         return [
             {
                 "id": config.id,
@@ -120,8 +130,7 @@ def build_internal_router(
                 "default_template_name": config.default_template_name,
                 "template_language": config.template_language,
             }
-            for config in config_store.list_configs()
-            if config.owner_user_id in allowed_owner_ids
+            for config in configs
         ]
 
     @router.post("/qualifier/page-link")

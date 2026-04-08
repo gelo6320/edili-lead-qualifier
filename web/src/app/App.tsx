@@ -69,6 +69,11 @@ const EMPTY_META_ASSETS: MetaAssetsPayload = {
   waba_options: [],
 }
 
+type DashboardRefreshOptions = {
+  preferredBotId: string | null
+  includeMetaAssets?: boolean
+}
+
 function normalizeUrlMessage(value: string): string {
   return value.replaceAll('_', ' ')
 }
@@ -338,12 +343,76 @@ function App() {
     setMobileNavOpen(false)
   }
 
-  async function refreshBots(preferredBotId: string | null) {
-    if (!accessToken) return
+  async function refreshDashboardData({
+    preferredBotId,
+    includeMetaAssets = false,
+  }: DashboardRefreshOptions) {
+    if (!accessToken) {
+      if (includeMetaAssets) {
+        setMetaAssets(EMPTY_META_ASSETS)
+      }
+      return
+    }
 
-    const freshBots = await listBots(accessToken)
-    setBots(freshBots)
-    syncSelection(freshBots, preferredBotId)
+    setIsLoadingDashboard(true)
+    setDashboardError('')
+    if (includeMetaAssets) {
+      setIsLoadingMetaAssets(true)
+      setMetaAssetsError('')
+    }
+
+    const [botsResult, assetsResult] = await Promise.allSettled([
+      listBots(accessToken),
+      includeMetaAssets ? getMetaAssets(accessToken) : Promise.resolve(null),
+    ])
+
+    if (botsResult.status === 'fulfilled') {
+      setBots(botsResult.value)
+      syncSelection(botsResult.value, preferredBotId)
+    } else {
+      const error = botsResult.reason
+      setDashboardError(
+        error instanceof DashboardApiError
+          ? error.detail
+          : 'Impossibile caricare i dati della dashboard.',
+      )
+
+      if (
+        error instanceof DashboardApiError &&
+        (error.status === 401 || error.status === 403) &&
+        supabase
+      ) {
+        await supabase.auth.signOut()
+      }
+    }
+
+    if (includeMetaAssets) {
+      if (assetsResult.status === 'fulfilled' && assetsResult.value) {
+        setMetaAssets(assetsResult.value)
+      } else if (assetsResult.status === 'rejected') {
+        const error = assetsResult.reason
+        setMetaAssetsError(
+          error instanceof DashboardApiError
+            ? error.detail
+            : 'Impossibile caricare asset Meta.',
+        )
+      }
+    }
+
+    setIsLoadingDashboard(false)
+    if (includeMetaAssets) {
+      setIsLoadingMetaAssets(false)
+    }
+  }
+
+  async function refreshBots(
+    preferredBotId: string | null,
+    options?: Omit<DashboardRefreshOptions, 'preferredBotId'>,
+  ) {
+    await refreshDashboardData({
+      preferredBotId,
+      includeMetaAssets: options?.includeMetaAssets ?? false,
+    })
   }
 
   async function refreshMetaAssets() {
@@ -407,13 +476,22 @@ function App() {
     setEditorNotice('')
 
     try {
+      const previousBot =
+        draftMode === 'existing'
+          ? bots.find((bot) => bot.id === draftBot.id) ?? null
+          : null
       const savedBot =
         draftMode === 'new'
           ? await createBot(accessToken, draftBot)
           : await updateBot(accessToken, draftBot)
+      const shouldRefreshMetaAssets = Boolean(
+        previousBot?.lead_manager_page_id || savedBot.lead_manager_page_id,
+      )
 
       setEditorNotice(draftMode === 'new' ? 'Creato.' : 'Salvato.')
-      await refreshBots(savedBot.id)
+      await refreshBots(savedBot.id, {
+        includeMetaAssets: shouldRefreshMetaAssets,
+      })
     } catch (error) {
       setEditorError(
         error instanceof DashboardApiError
@@ -433,9 +511,12 @@ function App() {
     setEditorNotice('')
 
     try {
+      const shouldRefreshMetaAssets = Boolean(draftBot.lead_manager_page_id)
       await deleteBot(accessToken, draftBot.id)
       setEditorNotice('Eliminato.')
-      await refreshBots(null)
+      await refreshBots(null, {
+        includeMetaAssets: shouldRefreshMetaAssets,
+      })
     } catch (error) {
       setEditorError(
         error instanceof DashboardApiError ? error.detail : 'Eliminazione fallita.',

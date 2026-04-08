@@ -59,6 +59,67 @@ class BotConfigStore:
 
         return [self._row_to_config(row) for row in rows]
 
+    def list_configs_filtered(
+        self,
+        owner_user_ids: list[str] | None = None,
+        *,
+        include_unowned: bool = False,
+    ) -> list[BotConfig]:
+        normalized_owner_ids = [
+            owner_user_id.strip()
+            for owner_user_id in (owner_user_ids or [])
+            if owner_user_id and owner_user_id.strip()
+        ]
+        if not normalized_owner_ids and not include_unowned:
+            return []
+
+        if self._pool is None:
+            return [
+                config
+                for config in self._list_file_configs()
+                if self._matches_owner_filter(
+                    config,
+                    normalized_owner_ids,
+                    include_unowned=include_unowned,
+                )
+            ]
+
+        self._refresh_db_columns_if_stale()
+        if not self._has_column("owner_user_id"):
+            return [
+                config
+                for config in self.list_configs()
+                if self._matches_owner_filter(
+                    config,
+                    normalized_owner_ids,
+                    include_unowned=include_unowned,
+                )
+            ]
+
+        where_parts: list[str] = []
+        params: list[object] = []
+        if normalized_owner_ids:
+            placeholders = ", ".join(["%s"] * len(normalized_owner_ids))
+            where_parts.append(f"owner_user_id IN ({placeholders})")
+            params.extend(normalized_owner_ids)
+        if include_unowned:
+            where_parts.append("NULLIF(BTRIM(COALESCE(owner_user_id, '')), '') IS NULL")
+
+        with self._pool.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    self._build_select_sql(
+                        where_clause=(
+                            "WHERE " + " OR ".join(f"({part})" for part in where_parts)
+                        ),
+                        order_by="ORDER BY name ASC, bot_id ASC",
+                    ),
+                    tuple(params),
+                )
+                rows = cursor.fetchall()
+
+        return [self._row_to_config(row) for row in rows]
+
     def get(self, bot_id: str) -> BotConfig | None:
         if self._pool is None:
             return self._get_file(bot_id)
@@ -394,6 +455,18 @@ class BotConfigStore:
         payload = config.model_dump(mode="json")
         payload["id"] = str(payload.get("id", "")).strip().lower()
         return BotConfig.model_validate(payload)
+
+    @staticmethod
+    def _matches_owner_filter(
+        config: BotConfig,
+        owner_user_ids: list[str],
+        *,
+        include_unowned: bool,
+    ) -> bool:
+        owner_user_id = config.owner_user_id.strip()
+        if owner_user_id:
+            return owner_user_id in owner_user_ids
+        return include_unowned
 
     @staticmethod
     def _row_to_config(row: dict) -> BotConfig:
