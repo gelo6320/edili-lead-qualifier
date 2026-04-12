@@ -77,9 +77,9 @@ class LeadRuntimeMetadata:
     initial_template_rendered_text: str = ""
     initial_template_parameters: list[str] = field(default_factory=list)
     images: list[LeadImageAsset] = field(default_factory=list)
-    lead_manager_forwarded_at: str = ""
-    lead_manager_reference: str = ""
-    lead_manager_note: str = ""
+    qualified_handoff_sent_at: str = ""
+    qualified_handoff_reference: str = ""
+    qualified_handoff_note: str = ""
     latest_contact_name: str = ""
 
     @classmethod
@@ -105,9 +105,9 @@ class LeadRuntimeMetadata:
             ]
             if isinstance(payload.get("images", []), list)
             else [],
-            lead_manager_forwarded_at=str(payload.get("lead_manager_forwarded_at", "")).strip(),
-            lead_manager_reference=str(payload.get("lead_manager_reference", "")).strip(),
-            lead_manager_note=str(payload.get("lead_manager_note", "")).strip(),
+            qualified_handoff_sent_at=str(payload.get("qualified_handoff_sent_at", "")).strip(),
+            qualified_handoff_reference=str(payload.get("qualified_handoff_reference", "")).strip(),
+            qualified_handoff_note=str(payload.get("qualified_handoff_note", "")).strip(),
             latest_contact_name=str(payload.get("latest_contact_name", "")).strip(),
         )
 
@@ -120,8 +120,8 @@ class LeadRuntimeMetadata:
         )
 
     @property
-    def is_forwarded_to_lead_manager(self) -> bool:
-        return bool(self.lead_manager_forwarded_at)
+    def has_qualified_handoff(self) -> bool:
+        return bool(self.qualified_handoff_sent_at)
 
     @property
     def has_images(self) -> bool:

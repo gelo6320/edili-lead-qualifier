@@ -9,14 +9,15 @@ from fastapi.staticfiles import StaticFiles
 
 from lead_qualifier.api.admin_router import build_admin_router
 from lead_qualifier.api.dashboard_router import build_dashboard_api_router
-from lead_qualifier.api.internal_router import build_internal_router
+from lead_qualifier.api.ghl_webhook_router import build_ghl_webhook_router
 from lead_qualifier.api.webhook_router import build_webhook_router
 from lead_qualifier.core.settings import Settings
 from lead_qualifier.integrations.anthropic.client import AnthropicLeadQualifier
-from lead_qualifier.integrations.lead_manager.client import LeadManagerClient
+from lead_qualifier.integrations.qualified_lead_webhook.client import QualifiedLeadWebhookClient
 from lead_qualifier.integrations.whatsapp.client import WhatsAppCloudClient
 from lead_qualifier.services.agent_toolbox import LeadQualifierToolbox
 from lead_qualifier.services.cloudflare_crawl import CloudflareCrawlClient
+from lead_qualifier.services.ghl_bot_resolver import GhlBotResolver
 from lead_qualifier.services.inbound import InboundMessageService
 from lead_qualifier.services.lead_media import LeadMediaService
 from lead_qualifier.services.outbound import OutboundMessageService
@@ -47,8 +48,8 @@ def create_app() -> FastAPI:
     )
     supabase_admin = SupabaseAdminClient(settings)
     meta_integration = MetaIntegrationService(settings, supabase_admin)
-    lead_manager_client = LeadManagerClient(settings, meta_integration)
-    toolbox = LeadQualifierToolbox(lead_manager_client)
+    qualified_lead_client = QualifiedLeadWebhookClient(settings)
+    toolbox = LeadQualifierToolbox(qualified_lead_client)
     qualifier = AnthropicLeadQualifier(settings, toolbox)
     whatsapp_client = WhatsAppCloudClient(settings)
     lead_media = LeadMediaService(settings, whatsapp_client)
@@ -75,6 +76,7 @@ def create_app() -> FastAPI:
         whatsapp_client,
         runtime_credentials,
     )
+    ghl_bot_resolver = GhlBotResolver(config_store)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -91,8 +93,8 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(build_webhook_router(settings, message_service))
+    app.include_router(build_ghl_webhook_router(ghl_bot_resolver, outbound_service))
     app.include_router(build_admin_router(settings, outbound_service))
-    app.include_router(build_internal_router(settings, config_store, meta_integration, outbound_service))
     app.include_router(
         build_dashboard_api_router(
             settings,

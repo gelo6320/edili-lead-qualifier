@@ -90,8 +90,8 @@ export function createEmptyBotConfig(): BotConfig {
     default_template_variable_count: 0,
     template_language: 'it',
     booking_url: '',
-    lead_manager_page_id: '',
-    lead_manager_page_name: '',
+    ghl_location_id: '',
+    qualified_lead_webhook_url: '',
     qualification_statuses: [...DEFAULT_STATUSES],
     fields: createConstructionDefaults(),
   }

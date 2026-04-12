@@ -6,7 +6,6 @@ import {
 } from '@/shared/lib/bot-config'
 import type {
   BotConfig,
-  LeadManagerPageOption,
   MetaAssetsPayload,
   MetaWabaOption,
 } from '@/shared/lib/types'
@@ -92,17 +91,6 @@ function matchTemplate(bot: BotConfig, templateOptions: MetaWabaOption['template
   return templateOptions.find((item) => item.name === templateName) ?? null
 }
 
-function getSelectedPage(
-  bot: BotConfig,
-  metaAssets: MetaAssetsPayload,
-): LeadManagerPageOption | null {
-  return metaAssets.page_options.find((item) => item.id === bot.lead_manager_page_id) ?? null
-}
-
-function isPageReservedForAnotherBot(page: LeadManagerPageOption, botId: string): boolean {
-  return Boolean(page.qualifier_bot_id && page.qualifier_bot_id !== botId)
-}
-
 export function BotEditor({
   bot,
   cloudflareCrawlEnabled,
@@ -127,12 +115,10 @@ export function BotEditor({
   onSave,
 }: BotEditorProps) {
   const selectedWaba = getSelectedWaba(bot, metaAssets)
-  const selectedPage = getSelectedPage(bot, metaAssets)
   const phoneOptions = selectedWaba?.phone_numbers ?? []
   const templateOptions = selectedWaba?.templates ?? []
   const selectedTemplate = matchTemplate(bot, templateOptions)
   const selectedTemplateBody = selectedTemplate?.body_text || bot.default_template_body_text
-  const hasPageOptions = metaAssets.page_options.length > 0
 
   function patch<K extends keyof BotConfig>(key: K, value: BotConfig[K]) {
     onChange({ ...bot, [key]: value })
@@ -165,14 +151,11 @@ export function BotEditor({
     }
 
     if (Object.keys(nextPatch).length > 0) {
-      patchMany(nextPatch)
+      onChange({ ...bot, ...nextPatch })
     }
   }, [
-    bot.default_template_body_text,
-    bot.default_template_id,
-    bot.default_template_name,
-    bot.default_template_variable_count,
-    bot.template_language,
+    bot,
+    onChange,
     selectedTemplate,
   ])
 
@@ -236,15 +219,6 @@ export function BotEditor({
       default_template_body_text: nextTemplate?.body_text ?? '',
       default_template_variable_count: nextTemplate?.body_variable_count ?? 0,
       template_language: nextTemplate?.language ?? 'it',
-    })
-  }
-
-  function handleLeadManagerPageChange(pageId: string) {
-    const nextPage =
-      metaAssets.page_options.find((item) => item.id === pageId) ?? null
-    patchMany({
-      lead_manager_page_id: nextPage?.id ?? '',
-      lead_manager_page_name: nextPage?.name ?? '',
     })
   }
 
@@ -415,36 +389,29 @@ export function BotEditor({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="lead-manager-page" className="text-sm font-semibold">Pagina lead-manager</Label>
-            <select
-              id="lead-manager-page"
-              className={SELECT_CLASS_NAME}
-              value={bot.lead_manager_page_id}
-              onChange={(event) => handleLeadManagerPageChange(event.target.value)}
-              disabled={!hasPageOptions}
-            >
-              <option value="">
-                {hasPageOptions ? 'Seleziona pagina' : 'Nessuna pagina disponibile'}
-              </option>
-              {metaAssets.page_options.map((page) => {
-                const disabled = isPageReservedForAnotherBot(page, bot.id)
-                return (
-                  <option key={page.id} value={page.id} disabled={disabled}>
-                    {page.name}
-                    {page.is_active === 'true' ? '' : ' - inattiva'}
-                    {disabled ? ` - assegnata a ${page.qualifier_bot_name || page.qualifier_bot_id}` : ''}
-                  </option>
-                )
-              })}
-            </select>
+            <Label htmlFor="ghl-location-id" className="text-sm font-semibold">GHL location ID</Label>
+            <Input
+              id="ghl-location-id"
+              className="h-11 rounded-xl"
+              value={bot.ghl_location_id}
+              onChange={(event) => patch('ghl_location_id', event.target.value)}
+              placeholder="es. abc123location"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="qualified-lead-webhook-url" className="text-sm font-semibold">
+              Webhook lead qualificato
+            </Label>
+            <Input
+              id="qualified-lead-webhook-url"
+              className="h-11 rounded-xl"
+              value={bot.qualified_lead_webhook_url}
+              onChange={(event) => patch('qualified_lead_webhook_url', event.target.value)}
+              placeholder="https://services.leadconnectorhq.com/workflows/... oppure URL webhook inbound GHL"
+            />
           </div>
         </div>
-
-        {selectedPage?.qualifier_bot_id && selectedPage.qualifier_bot_id !== bot.id ? (
-          <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-            Pagina gia assegnata a {selectedPage.qualifier_bot_name || selectedPage.qualifier_bot_id}.
-          </div>
-        ) : null}
 
         {selectedTemplateBody ? (
           <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">

@@ -97,13 +97,6 @@ def build_dashboard_api_router(
             }
         )
         saved = config_store.upsert(prepared_payload)
-        _sync_page_assignment(
-            meta_integration,
-            user.id,
-            saved,
-            previous_config=None,
-            owner_email=user.email,
-        )
         return saved.model_dump(mode="json")
 
     @router.put("/bots/{bot_id}")
@@ -121,13 +114,6 @@ def build_dashboard_api_router(
             }
         )
         saved = config_store.upsert(prepared_payload)
-        _sync_page_assignment(
-            meta_integration,
-            user.id,
-            saved,
-            previous_config=previous_config,
-            owner_email=user.email,
-        )
         return saved.model_dump(mode="json")
 
     @router.delete("/bots/{bot_id}")
@@ -136,15 +122,6 @@ def build_dashboard_api_router(
         existing = config_store.get(bot_id)
         if existing is None or (existing.owner_user_id and existing.owner_user_id != user.id):
             raise HTTPException(status_code=404, detail="Bot non trovato.")
-        if meta_integration and existing.lead_manager_page_id:
-            try:
-                meta_integration.clear_page_assignment(
-                    owner_user_id=user.id,
-                    page_id=existing.lead_manager_page_id,
-                    owner_email=user.email,
-                )
-            except MetaIntegrationError as exc:
-                raise HTTPException(status_code=502, detail=str(exc)) from exc
         config_store.delete(bot_id)
         return {"status": "deleted", "bot_id": bot_id}
 
@@ -401,34 +378,3 @@ def _extract_image_urls_from_blocks(blocks: list[dict]) -> list[str]:
             if data:
                 image_urls.append(f"data:{media_type};base64,{data}")
     return image_urls
-
-
-def _sync_page_assignment(
-    meta_integration: MetaIntegrationService | None,
-    owner_user_id: str,
-    config: BotConfig,
-    *,
-    previous_config: BotConfig | None,
-    owner_email: str = "",
-) -> None:
-    if meta_integration is None:
-        return
-
-    previous_page_id = previous_config.lead_manager_page_id if previous_config else ""
-    next_page_id = config.lead_manager_page_id
-
-    if previous_page_id and previous_page_id != next_page_id:
-        meta_integration.clear_page_assignment(
-            owner_user_id=owner_user_id,
-            page_id=previous_page_id,
-            owner_email=owner_email,
-        )
-
-    if next_page_id:
-        meta_integration.assign_page_to_bot(
-            owner_user_id=owner_user_id,
-            page_id=next_page_id,
-            bot_id=config.id,
-            bot_name=config.name,
-            owner_email=owner_email,
-        )

@@ -170,6 +170,35 @@ class BotConfigStore:
             return None
         return self._row_to_config(row)
 
+    def get_by_ghl_location_id(self, ghl_location_id: str) -> BotConfig | None:
+        normalized = ghl_location_id.strip()
+        if not normalized:
+            return None
+
+        if self._pool is None:
+            for config in self._list_file_configs():
+                if config.ghl_location_id == normalized:
+                    return config
+            return None
+        self._refresh_db_columns_if_stale()
+        if not self._has_column("ghl_location_id"):
+            return None
+
+        with self._pool.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    self._build_select_sql(
+                        where_clause="WHERE ghl_location_id = %s",
+                        limit_clause="LIMIT 1",
+                    ),
+                    (normalized,),
+                )
+                row = cursor.fetchone()
+
+        if row is None:
+            return None
+        return self._row_to_config(row)
+
     def upsert(self, config: BotConfig) -> BotConfig:
         if self._pool is None:
             return self._upsert_file(config)
@@ -259,12 +288,28 @@ class BotConfigStore:
                 )
                 cursor.execute(
                     f"""
+                    ALTER TABLE IF EXISTS {self._table}
+                        ADD COLUMN IF NOT EXISTS ghl_location_id text NOT NULL DEFAULT ''
+                    """
+                )
+                cursor.execute(
+                    f"""
+                    ALTER TABLE IF EXISTS {self._table}
+                        ADD COLUMN IF NOT EXISTS qualified_lead_webhook_url text NOT NULL DEFAULT ''
+                    """
+                )
+                cursor.execute(
+                    f"""
                     UPDATE {self._table}
                     SET
                         default_template_id = COALESCE(default_template_id, ''),
-                        default_template_body_text = COALESCE(default_template_body_text, '')
+                        default_template_body_text = COALESCE(default_template_body_text, ''),
+                        ghl_location_id = COALESCE(ghl_location_id, ''),
+                        qualified_lead_webhook_url = COALESCE(qualified_lead_webhook_url, '')
                     WHERE default_template_id IS NULL
                        OR default_template_body_text IS NULL
+                       OR ghl_location_id IS NULL
+                       OR qualified_lead_webhook_url IS NULL
                     """
                 )
 
@@ -342,8 +387,8 @@ class BotConfigStore:
             self._select_expr("default_template_variable_count", fallback_sql="0"),
             self._select_expr("template_language"),
             self._select_expr("booking_url"),
-            self._select_expr("lead_manager_page_id"),
-            self._select_expr("lead_manager_page_name", fallback_sql="''"),
+            self._select_expr("ghl_location_id", fallback_sql="''"),
+            self._select_expr("qualified_lead_webhook_url", fallback_sql="''"),
             self._select_expr(
                 "qualification_statuses_json",
                 cast="::text",
@@ -396,8 +441,8 @@ class BotConfigStore:
             ("default_template_variable_count", normalized.default_template_variable_count, None, False),
             ("template_language", normalized.template_language, None, False),
             ("booking_url", normalized.booking_url, None, False),
-            ("lead_manager_page_id", normalized.lead_manager_page_id, None, False),
-            ("lead_manager_page_name", normalized.lead_manager_page_name, None, False),
+            ("ghl_location_id", normalized.ghl_location_id, None, False),
+            ("qualified_lead_webhook_url", normalized.qualified_lead_webhook_url, None, False),
             (
                 "qualification_statuses_json",
                 json.dumps(normalized.qualification_statuses, ensure_ascii=False),
@@ -493,8 +538,8 @@ class BotConfigStore:
                 "default_template_variable_count": row.get("default_template_variable_count", 0),
                 "template_language": row["template_language"],
                 "booking_url": row["booking_url"],
-                "lead_manager_page_id": row["lead_manager_page_id"],
-                "lead_manager_page_name": row.get("lead_manager_page_name", ""),
+                "ghl_location_id": row.get("ghl_location_id", ""),
+                "qualified_lead_webhook_url": row.get("qualified_lead_webhook_url", ""),
                 "qualification_statuses": json.loads(row["qualification_statuses_json"]),
                 "fields": json.loads(row["fields_json"]),
             }

@@ -190,15 +190,11 @@ class MetaIntegrationService:
         return secret
 
     def list_assets(self, owner_user_id: str, owner_email: str = "") -> dict[str, Any]:
-        page_options, integration = self._load_assets_context(
-            owner_user_id,
-            owner_email=owner_email,
-        )
+        integration = self.get_integration(owner_user_id)
         if not integration:
             return {
                 "connected": False,
                 "profile": None,
-                "page_options": page_options,
                 "waba_options": [],
             }
 
@@ -213,26 +209,8 @@ class MetaIntegrationService:
                 "name": _clean(integration.get("meta_user_name")),
                 "token_expires_at": _clean(integration.get("token_expires_at")),
             },
-            "page_options": page_options,
             "waba_options": waba_options,
         }
-
-    def _load_assets_context(
-        self,
-        owner_user_id: str,
-        *,
-        owner_email: str = "",
-    ) -> tuple[list[dict[str, str]], dict[str, Any]]:
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            page_options_future = executor.submit(
-                self.list_page_options,
-                owner_user_id,
-                owner_email,
-            )
-            integration_future = executor.submit(self.get_integration, owner_user_id)
-            page_options = page_options_future.result()
-            integration = integration_future.result()
-        return page_options, integration
 
     def _get_access_token_from_integration(self, integration: dict[str, Any]) -> str:
         secret_id = _clean(integration.get("access_token_secret_id"))
@@ -323,258 +301,6 @@ class MetaIntegrationService:
             "phone_numbers": phone_numbers,
             "templates": templates,
         }
-
-    def list_page_options(self, owner_user_id: str, owner_email: str = "") -> list[dict[str, str]]:
-        if self._settings.lead_manager_api_url:
-            try:
-                return self._list_page_options_via_lead_manager(
-                    owner_user_id,
-                    owner_email=owner_email,
-                )
-            except MetaIntegrationError:
-                if not self._admin.is_configured:
-                    raise
-        if not self._admin.is_configured:
-            return []
-        try:
-            payload = self._admin.request(
-                "GET",
-                "/rest/v1/meta_page_subscriptions",
-                params={
-                    "owner_user_id": f"eq.{owner_user_id}",
-                    "select": "page_id,page_name,is_active,qualifier_bot_id,qualifier_bot_name",
-                    "order": "page_name.asc",
-                },
-            )
-        except SupabaseAdminError as exc:
-            if _is_schema_missing_error(exc):
-                return []
-            raise MetaIntegrationError(str(exc)) from exc
-        options: list[dict[str, str]] = []
-        if not isinstance(payload, list):
-            return options
-        for item in payload:
-            if not isinstance(item, dict):
-                continue
-            page_id = _clean(item.get("page_id"))
-            if not page_id:
-                continue
-            options.append(
-                {
-                    "id": page_id,
-                    "name": _clean(item.get("page_name")) or page_id,
-                    "is_active": "true" if bool(item.get("is_active")) else "false",
-                    "qualifier_bot_id": _clean(item.get("qualifier_bot_id")),
-                    "qualifier_bot_name": _clean(item.get("qualifier_bot_name")),
-                }
-            )
-        return options
-
-    def assign_page_to_bot(
-        self,
-        *,
-        owner_user_id: str,
-        page_id: str,
-        bot_id: str,
-        bot_name: str,
-        owner_email: str = "",
-    ) -> None:
-        if self._settings.lead_manager_api_url:
-            self._assign_page_to_bot_via_lead_manager(
-                owner_user_id=owner_user_id,
-                owner_email=owner_email,
-                page_id=page_id,
-                bot_id=bot_id,
-                bot_name=bot_name,
-            )
-            return
-        try:
-            self._admin.rpc(
-                "assign_meta_page_qualifier",
-                {
-                    "p_owner_user_id": owner_user_id,
-                    "p_page_id": page_id,
-                    "p_bot_id": bot_id,
-                    "p_bot_name": bot_name,
-                },
-            )
-        except SupabaseAdminError as exc:
-            if _is_schema_missing_error(exc):
-                raise MetaIntegrationError(self._migration_missing_message()) from exc
-            raise MetaIntegrationError(str(exc)) from exc
-
-    def clear_page_assignment(
-        self,
-        *,
-        owner_user_id: str,
-        page_id: str,
-        owner_email: str = "",
-    ) -> None:
-        if self._settings.lead_manager_api_url:
-            self._clear_page_assignment_via_lead_manager(
-                owner_user_id=owner_user_id,
-                owner_email=owner_email,
-                page_id=page_id,
-            )
-            return
-        try:
-            self._admin.rpc(
-                "clear_meta_page_qualifier",
-                {
-                    "p_owner_user_id": owner_user_id,
-                    "p_page_id": page_id,
-                },
-            )
-        except SupabaseAdminError as exc:
-            if _is_schema_missing_error(exc):
-                raise MetaIntegrationError(self._migration_missing_message()) from exc
-            raise MetaIntegrationError(str(exc)) from exc
-
-    def get_runtime_page_bridge(self, page_id: str) -> dict[str, Any]:
-        if self._settings.lead_manager_api_url:
-            try:
-                return self._get_runtime_page_bridge_via_lead_manager(page_id)
-            except MetaIntegrationError:
-                if not self._admin.is_configured:
-                    raise
-        if not self._admin.is_configured:
-            return {}
-        try:
-            payload = self._admin.request(
-                "GET",
-                "/rest/v1/meta_page_subscriptions",
-                params={
-                    "page_id": f"eq.{page_id}",
-                    "select": "page_id,page_name,owner_user_id,qualifier_bot_id,qualifier_bot_name,qualifier_bridge_secret_id",
-                    "limit": "1",
-                },
-            )
-        except SupabaseAdminError as exc:
-            if _is_schema_missing_error(exc):
-                return {}
-            raise MetaIntegrationError(str(exc)) from exc
-        if isinstance(payload, list) and payload:
-            return payload[0]
-        return {}
-
-    def read_bridge_secret(self, secret_id: str) -> str:
-        return self._read_secret(secret_id)
-
-    def _lead_manager_request(
-        self,
-        method: str,
-        path: str,
-        *,
-        params: dict[str, Any] | None = None,
-        json_body: Any = None,
-    ) -> Any:
-        base_url = _lead_manager_base_url(self._settings.lead_manager_api_url)
-        if not base_url:
-            raise MetaIntegrationError("LEAD_MANAGER_API_URL non configurato.")
-        headers = {"Content-Type": "application/json"}
-        if self._settings.lead_manager_api_key:
-            headers["X-API-Key"] = self._settings.lead_manager_api_key
-
-        url = f"{base_url.rstrip('/')}{path}"
-        try:
-            response = httpx.request(
-                method,
-                url,
-                headers=headers,
-                params=params,
-                json=json_body,
-                timeout=self._settings.http_timeout_seconds,
-            )
-        except httpx.HTTPError as exc:
-            raise MetaIntegrationError(str(exc)) from exc
-
-        if response.status_code == 204:
-            return None
-
-        try:
-            payload: Any = response.json()
-        except ValueError:
-            payload = {"raw": response.text}
-
-        if not response.is_success:
-            raise MetaIntegrationError(str(payload))
-        return payload
-
-    def _list_page_options_via_lead_manager(
-        self,
-        owner_user_id: str,
-        *,
-        owner_email: str = "",
-    ) -> list[dict[str, str]]:
-        payload = self._lead_manager_request(
-            "GET",
-            "/api/internal/qualifier/pages",
-            params={
-                "owner_user_id": owner_user_id,
-                "owner_email": owner_email,
-            },
-        )
-        if not isinstance(payload, list):
-            raise MetaIntegrationError("Risposta lead-manager non valida.")
-        return [
-            {
-                "id": _clean(item.get("id")),
-                "name": _clean(item.get("name")) or _clean(item.get("id")),
-                "is_active": _clean(item.get("is_active")) or "false",
-                "qualifier_bot_id": _clean(item.get("qualifier_bot_id")),
-                "qualifier_bot_name": _clean(item.get("qualifier_bot_name")),
-            }
-            for item in payload
-            if isinstance(item, dict) and _clean(item.get("id"))
-        ]
-
-    def _assign_page_to_bot_via_lead_manager(
-        self,
-        *,
-        owner_user_id: str,
-        owner_email: str = "",
-        page_id: str,
-        bot_id: str,
-        bot_name: str,
-    ) -> None:
-        self._lead_manager_request(
-            "POST",
-            "/api/internal/qualifier/assignment",
-            json_body={
-                "owner_user_id": owner_user_id,
-                "owner_email": owner_email,
-                "page_id": page_id,
-                "bot_id": bot_id,
-                "bot_name": bot_name,
-            },
-        )
-
-    def _clear_page_assignment_via_lead_manager(
-        self,
-        *,
-        owner_user_id: str,
-        owner_email: str = "",
-        page_id: str,
-    ) -> None:
-        self._lead_manager_request(
-            "POST",
-            "/api/internal/qualifier/assignment",
-            json_body={
-                "owner_user_id": owner_user_id,
-                "owner_email": owner_email,
-                "page_id": page_id,
-            },
-        )
-
-    def _get_runtime_page_bridge_via_lead_manager(self, page_id: str) -> dict[str, Any]:
-        payload = self._lead_manager_request(
-            "GET",
-            "/api/internal/qualifier/page-bridge",
-            params={"page_id": page_id},
-        )
-        if isinstance(payload, dict):
-            return payload
-        raise MetaIntegrationError("Risposta bridge lead-manager non valida.")
 
     def _exchange_code_for_token(self, code: str) -> dict[str, Any]:
         callback_url = f"{self._settings.app_base_url}/api/dashboard/meta/oauth/callback"
@@ -849,10 +575,3 @@ def _extract_rpc_scalar(payload: Any, key: str) -> str:
     if isinstance(payload, dict):
         return _clean(payload.get(key))
     return _clean(payload)
-
-
-def _lead_manager_base_url(configured_url: str) -> str:
-    normalized = _clean(configured_url).rstrip("/")
-    if normalized.endswith("/api/leads/custom"):
-        return normalized[: -len("/api/leads/custom")]
-    return normalized

@@ -84,13 +84,13 @@ class BotConfig(BaseModel):
     )
     template_language: str = Field(default="it", description="Lingua template Meta.")
     booking_url: str = Field(default="", description="URL opzionale per prenotare una chiamata.")
-    lead_manager_page_id: str = Field(
+    ghl_location_id: str = Field(
         default="",
-        description="Page ID usato dal lead manager per instradare il lead qualificato.",
+        description="Location ID GoHighLevel usato per associare i lead inbound al bot corretto.",
     )
-    lead_manager_page_name: str = Field(
+    qualified_lead_webhook_url: str = Field(
         default="",
-        description="Nome leggibile della pagina collegata su lead manager.",
+        description="Webhook URL chiamato quando il lead viene qualificato.",
     )
     qualification_statuses: list[str] = Field(
         default_factory=lambda: DEFAULT_QUALIFICATION_STATUSES.copy(),
@@ -121,8 +121,8 @@ class BotConfig(BaseModel):
         "default_template_body_text",
         "template_language",
         "booking_url",
-        "lead_manager_page_id",
-        "lead_manager_page_name",
+        "ghl_location_id",
+        "qualified_lead_webhook_url",
         mode="before",
     )
     @classmethod

@@ -28,8 +28,8 @@ export type BotConfig = {
   default_template_variable_count: number
   template_language: string
   booking_url: string
-  lead_manager_page_id: string
-  lead_manager_page_name: string
+  ghl_location_id: string
+  qualified_lead_webhook_url: string
   qualification_statuses: string[]
   fields: BotFieldConfig[]
 }
@@ -79,14 +79,6 @@ export type ChatMessage = {
   images: string[]
 }
 
-export type LeadManagerPageOption = {
-  id: string
-  name: string
-  is_active: string
-  qualifier_bot_id: string
-  qualifier_bot_name: string
-}
-
 export type MetaTemplateOption = {
   id: string
   name: string
@@ -120,7 +112,6 @@ export type MetaAssetsPayload = {
     name: string
     token_expires_at: string
   } | null
-  page_options: LeadManagerPageOption[]
   waba_options: MetaWabaOption[]
 }
 

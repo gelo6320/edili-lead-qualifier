@@ -65,7 +65,6 @@ const NAV_ITEMS: {
 const EMPTY_META_ASSETS: MetaAssetsPayload = {
   connected: false,
   profile: null,
-  page_options: [],
   waba_options: [],
 }
 
@@ -225,7 +224,7 @@ function App() {
         const [sessionPayload, botList] = dashboardResult.value
         setUser(sessionPayload.user)
         setBots(botList)
-        syncSelection(botList, selectedBotId)
+        syncSelection(botList, null)
       } else {
         const error = dashboardResult.reason
         const message =
@@ -476,22 +475,13 @@ function App() {
     setEditorNotice('')
 
     try {
-      const previousBot =
-        draftMode === 'existing'
-          ? bots.find((bot) => bot.id === draftBot.id) ?? null
-          : null
       const savedBot =
         draftMode === 'new'
           ? await createBot(accessToken, draftBot)
           : await updateBot(accessToken, draftBot)
-      const shouldRefreshMetaAssets = Boolean(
-        previousBot?.lead_manager_page_id || savedBot.lead_manager_page_id,
-      )
 
       setEditorNotice(draftMode === 'new' ? 'Creato.' : 'Salvato.')
-      await refreshBots(savedBot.id, {
-        includeMetaAssets: shouldRefreshMetaAssets,
-      })
+      await refreshBots(savedBot.id)
     } catch (error) {
       setEditorError(
         error instanceof DashboardApiError
@@ -511,12 +501,9 @@ function App() {
     setEditorNotice('')
 
     try {
-      const shouldRefreshMetaAssets = Boolean(draftBot.lead_manager_page_id)
       await deleteBot(accessToken, draftBot.id)
       setEditorNotice('Eliminato.')
-      await refreshBots(null, {
-        includeMetaAssets: shouldRefreshMetaAssets,
-      })
+      await refreshBots(null)
     } catch (error) {
       setEditorError(
         error instanceof DashboardApiError ? error.detail : 'Eliminazione fallita.',

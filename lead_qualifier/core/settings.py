@@ -48,8 +48,6 @@ class Settings:
     whatsapp_verify_token: str
     meta_app_secret: str
     meta_enforce_signature: bool
-    lead_manager_api_url: str
-    lead_manager_api_key: str
     cloudflare_account_id: str
     cloudflare_api_token: str
     http_timeout_seconds: float
@@ -100,8 +98,6 @@ class Settings:
             whatsapp_verify_token=os.getenv("WHATSAPP_VERIFY_TOKEN", "").strip(),
             meta_app_secret=os.getenv("META_APP_SECRET", "").strip(),
             meta_enforce_signature=_env_flag("META_ENFORCE_SIGNATURE", True),
-            lead_manager_api_url=os.getenv("LEAD_MANAGER_API_URL", "").rstrip("/"),
-            lead_manager_api_key=os.getenv("LEAD_MANAGER_API_KEY", "").strip(),
             cloudflare_account_id=os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip(),
             cloudflare_api_token=os.getenv("CLOUDFLARE_API_TOKEN", "").strip(),
             http_timeout_seconds=max(float(os.getenv("HTTP_TIMEOUT_SECONDS", "30")), 5.0),

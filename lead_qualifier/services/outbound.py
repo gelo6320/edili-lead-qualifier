@@ -120,7 +120,7 @@ class OutboundMessageService:
             body_parameters=body_parameters,
         )
 
-    def start_qualification_from_bridge(
+    def start_qualification_for_lead(
         self,
         *,
         bot_id: str,

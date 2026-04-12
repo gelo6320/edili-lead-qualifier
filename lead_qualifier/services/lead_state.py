@@ -51,26 +51,6 @@ def with_initial_template(
             initial_template_parameters=[value.strip() for value in body_parameters if value.strip()],
         ),
     )
-
-
-def with_lead_manager_forwarding(
-    lead_state: LeadState,
-    *,
-    forwarded_at: str,
-    reference: str,
-    manager_note: str,
-) -> LeadState:
-    return replace(
-        lead_state,
-        metadata=replace(
-            lead_state.metadata,
-            lead_manager_forwarded_at=forwarded_at.strip(),
-            lead_manager_reference=reference.strip(),
-            lead_manager_note=manager_note.strip(),
-        ),
-    )
-
-
 def infer_initial_template_from_history(lead_state: LeadState, history: list[StoredMessage]) -> LeadState:
     if lead_state.metadata.has_initial_template:
         return lead_state

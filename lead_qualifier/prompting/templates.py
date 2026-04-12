@@ -74,6 +74,6 @@ Valori gia raccolti:
 Riassunto corrente: {summary}
 Bootstrap conversazione: {conversation_bootstrap}
 Immagini raccolte: {images_status}
-Passaggio lead manager: {lead_manager_status}
+Passaggio operativo: {qualified_handoff_status}
 </runtime_state>
 """.strip()

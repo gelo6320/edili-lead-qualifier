@@ -6,10 +6,10 @@ from typing import Any
 
 from lead_qualifier.domain.bot_config import BotConfig
 from lead_qualifier.domain.lead import LeadRuntimeMetadata, LeadState
-from lead_qualifier.integrations.lead_manager.client import LeadManagerClient
+from lead_qualifier.integrations.qualified_lead_webhook.client import QualifiedLeadWebhookClient
 
 
-SEND_QUALIFIED_LEAD_TOOL_NAME = "send_qualified_lead_to_manager"
+SEND_QUALIFIED_LEAD_TOOL_NAME = "send_qualified_lead_webhook"
 
 
 @dataclass(frozen=True)
@@ -27,13 +27,13 @@ class ToolExecutionOutcome:
 
 
 class LeadQualifierToolbox:
-    def __init__(self, lead_manager_client: LeadManagerClient) -> None:
-        self._lead_manager_client = lead_manager_client
+    def __init__(self, qualified_lead_client: QualifiedLeadWebhookClient) -> None:
+        self._qualified_lead_client = qualified_lead_client
 
     def definitions(self, context: LeadQualifierToolContext) -> list[dict[str, Any]]:
         if (
-            not self._lead_manager_client.is_enabled_for(context.config)
-            or context.lead_state.metadata.is_forwarded_to_lead_manager
+            not self._qualified_lead_client.is_enabled_for(context.config)
+            or context.lead_state.metadata.has_qualified_handoff
         ):
             return []
 
@@ -41,7 +41,7 @@ class LeadQualifierToolbox:
             {
                 "name": SEND_QUALIFIED_LEAD_TOOL_NAME,
                 "description": (
-                    "Invia il lead qualificato al lead manager operativo. "
+                    "Invia il lead qualificato al webhook operativo configurato per questo bot. "
                     "Usa questo tool solo come ultimo step, quando i requisiti principali sono stati raccolti, "
                     "il riassunto e pronto e il requisito immagini e stato chiuso con foto ricevute oppure "
                     "esplicitamente non disponibili."
@@ -49,35 +49,35 @@ class LeadQualifierToolbox:
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "manager_note": {
+                        "handoff_note": {
                             "type": "string",
                             "description": (
-                                "Nota breve per il lead manager con contesto utile, "
-                                "priorita percepita e prossimo passo consigliato."
+                                "Nota breve per il team operativo che riceve il lead, "
+                                "con priorita percepita e prossimo passo consigliato."
                             ),
                         }
                     },
-                    "required": ["manager_note"],
+                    "required": ["handoff_note"],
                     "additionalProperties": False,
                 },
             }
         ]
 
     def tool_rules(self, context: LeadQualifierToolContext) -> str:
-        if not self._lead_manager_client.is_enabled_for(context.config):
+        if not self._qualified_lead_client.is_enabled_for(context.config):
             return (
                 "Non hai tool operativi disponibili in questo tenant. "
                 "Quando il lead e qualificato, limita la risposta al riepilogo e al prossimo passo."
             )
-        if context.lead_state.metadata.is_forwarded_to_lead_manager:
+        if context.lead_state.metadata.has_qualified_handoff:
             return (
-                "Il lead e gia stato inviato al lead manager. "
+                "Il lead e gia stato inviato al webhook operativo. "
                 "Non usare di nuovo il tool di invio salvo una correzione esplicita del lead."
             )
         return (
             "Quando il lead e qualificato in modo sufficiente, il requisito immagini e stato risolto "
             "(foto ricevute oppure non disponibili) e il lead e pronto per il passaggio, "
-            "usa il tool send_qualified_lead_to_manager prima di confermare al lead il passo successivo."
+            "usa il tool send_qualified_lead_webhook prima di confermare al lead il passo successivo."
         )
 
     def execute(
@@ -91,30 +91,37 @@ class LeadQualifierToolbox:
         if tool_name != SEND_QUALIFIED_LEAD_TOOL_NAME:
             raise RuntimeError(f"Tool non supportato: {tool_name}")
 
-        manager_note = str(tool_input.get("manager_note", "")).strip()
-        if not manager_note:
-            raise RuntimeError("manager_note obbligatoria.")
+        handoff_note = str(tool_input.get("handoff_note", "")).strip()
+        if not handoff_note:
+            raise RuntimeError("handoff_note obbligatoria.")
 
-        response = self._lead_manager_client.forward_qualified_lead(
+        response = self._qualified_lead_client.deliver(
             config=context.config,
             wa_id=context.wa_id,
             lead_state=context.lead_state,
-            manager_note=manager_note,
+            handoff_note=handoff_note,
             contact_name=context.contact_name or metadata.latest_contact_name,
         )
 
-        forwarded_at = datetime.now(timezone.utc).isoformat()
-        reference = str(response.get("leadgen_id", "")).strip() or str(response.get("id", "")).strip()
+        sent_at = datetime.now(timezone.utc).isoformat()
+        response_body = response.get("body")
+        reference = ""
+        if isinstance(response_body, dict):
+            reference = (
+                str(response_body.get("id", "")).strip()
+                or str(response_body.get("reference", "")).strip()
+                or str(response_body.get("leadgen_id", "")).strip()
+            )
         next_metadata = replace(
             metadata,
-            lead_manager_forwarded_at=forwarded_at,
-            lead_manager_reference=reference,
-            lead_manager_note=manager_note,
+            qualified_handoff_sent_at=sent_at,
+            qualified_handoff_reference=reference,
+            qualified_handoff_note=handoff_note,
         )
         return ToolExecutionOutcome(
             result={
                 "status": "sent",
-                "forwarded_at": forwarded_at,
+                "sent_at": sent_at,
                 "reference": reference,
                 "response": response,
             },

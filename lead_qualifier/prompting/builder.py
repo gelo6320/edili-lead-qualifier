@@ -103,7 +103,7 @@ def build_system_blocks(
         summary=lead_state.summary.strip() or "Nessun riassunto ancora disponibile.",
         conversation_bootstrap=_format_conversation_bootstrap(lead_state),
         images_status=_format_images_status(lead_state),
-        lead_manager_status=_format_lead_manager_status(lead_state),
+        qualified_handoff_status=_format_qualified_handoff_status(lead_state),
     )
 
     if knowledge_context.strip():
@@ -194,12 +194,12 @@ def _format_images_status(lead_state: LeadState) -> str:
     return "\n".join(lines)
 
 
-def _format_lead_manager_status(lead_state: LeadState) -> str:
+def _format_qualified_handoff_status(lead_state: LeadState) -> str:
     metadata = lead_state.metadata
-    if not metadata.is_forwarded_to_lead_manager:
-        return "Lead non ancora inviato al lead manager."
-    reference = metadata.lead_manager_reference or "n/d"
+    if not metadata.has_qualified_handoff:
+        return "Lead non ancora inviato al webhook operativo."
+    reference = metadata.qualified_handoff_reference or "n/d"
     return (
-        f"Lead gia inviato al lead manager il {metadata.lead_manager_forwarded_at}. "
-        f"Riferimento: {reference}. Nota invio: {metadata.lead_manager_note or 'nessuna'}."
+        f"Lead gia inviato al webhook operativo il {metadata.qualified_handoff_sent_at}. "
+        f"Riferimento: {reference}. Nota invio: {metadata.qualified_handoff_note or 'nessuna'}."
     )

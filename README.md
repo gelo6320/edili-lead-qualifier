@@ -18,31 +18,31 @@ La dashboard:
 - Nessuno schema lead hardcoded nel codice.
 - Ogni bot definisce i propri campi richiesti e i propri dati aziendali.
 - Il prompt operativo e il prompt principale sono fissati nel codice e non vengono editati da dashboard.
-- Quando il lead e qualificato, Claude puo usare il tool di handoff verso il lead manager.
+- Quando il lead e qualificato, Claude puo usare il tool di handoff verso un webhook operativo configurato sul bot.
 - Il template iniziale crea subito la conversazione e il relativo contesto agente, salvando anche il body renderizzato con i parametri.
-- La dashboard puo collegare Facebook via OAuth e leggere direttamente WABA, numeri WhatsApp, template approvati e pagine lead-manager disponibili.
-- I token Meta utente e i secret del bridge tra servizi vengono custoditi in Supabase Vault, non in chiaro.
-- Lead qualifier e lead-manager possono instaurare un bridge firmato HMAC per avviare la qualifica da un lead Meta e per re-inviare lead qualificati verso `POST /api/leads/custom`.
+- La dashboard puo collegare Facebook via OAuth e leggere direttamente WABA, numeri WhatsApp e template approvati.
+- I token Meta utente vengono custoditi in Supabase Vault, non in chiaro.
+- I lead possono essere avviati da automazioni GoHighLevel via `POST /webhooks/ghl/qualification-start`, con routing al bot corretto tramite `location.id` oppure `bot_id` nel custom data.
 - Un sito web puo essere analizzato tramite Cloudflare `/crawl` per popolare dati aziendali e knowledge base RAG consultata dall'agente.
-- Le immagini inviate dal lead via WhatsApp possono essere scaricate, passate a Claude e reinoltrate al lead-manager con URL pubblici.
-- I file in [bot_configs](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/bot_configs) restano come seed/versioning.
+- Le immagini inviate dal lead via WhatsApp possono essere scaricate, passate a Claude e incluse nel payload del lead qualificato verso il webhook operativo.
+- I file in [bot_configs](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/bot_configs) restano come seed/versioning.
 - In produzione le configurazioni vengono persistite in `public.bot_configs` su Supabase.
 - Le tabelle runtime multi-tenant sono in `public`, non piu nello schema legacy `lead_qualifier`.
 
 ## Architettura
 
-- [app.py](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/app.py): entrypoint ASGI
+- [app.py](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/app.py): entrypoint ASGI
 - [lead_qualifier/app/factory.py](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/lead_qualifier/app/factory.py): bootstrap app, store, router, static dashboard
 - [lead_qualifier/api](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/lead_qualifier/api): router HTTP, auth dashboard/admin, schemi request/response
 - [lead_qualifier/domain](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/lead_qualifier/domain): modelli core del bot e del lead
-- [lead_qualifier/integrations](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/lead_qualifier/integrations): client Anthropic, WhatsApp e lead manager
+- [lead_qualifier/integrations](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/lead_qualifier/integrations): client Anthropic, WhatsApp e webhook lead qualificato
 - [lead_qualifier/prompting](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/lead_qualifier/prompting): prompt base fisso e builder del prompt runtime
 - [lead_qualifier/services](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/lead_qualifier/services): logica applicativa inbound/outbound e tool agent
 - [lead_qualifier/storage](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/lead_qualifier/storage): persistenza config e stato lead
 - [web/src/app/App.tsx](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/web/src/app/App.tsx): shell dashboard
 - [web/src/features](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/web/src/features): componenti UI organizzati per feature
 - [web/src/shared](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/web/src/shared): librerie, tipi e componenti UI riusabili
-- [supabase/migrations/20260403_020000_create_multitenant_runtime.sql](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/supabase/migrations/20260403_020000_create_multitenant_runtime.sql): schema runtime multi-tenant
+- [supabase/migrations/20260403_020000_create_multitenant_runtime.sql](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/supabase/migrations/20260403_020000_create_multitenant_runtime.sql): schema runtime multi-tenant
 
 ## Dati su Supabase
 
@@ -59,21 +59,24 @@ Migrazione applicata sul progetto Supabase:
 - nome migration: `create_multitenant_runtime`
 - i dati legacy single-tenant sono stati copiati in `public.*` come `bot_id = 'default'`
 
-Migrazione nuova per bridge e knowledge base:
+Migrazione nuova per knowledge base:
 - [supabase/migrations/20260405_180000_add_meta_bridge_and_knowledge.sql](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/supabase/migrations/20260405_180000_add_meta_bridge_and_knowledge.sql)
 - aggiunge wrapper `SECURITY DEFINER` per Supabase Vault
 - aggiunge mapping OAuth Meta utente -> token in Vault
-- aggiunge assegnazione sicura pagina `lead-manager` <-> bot qualificatore
 - aggiunge chunk storage per la knowledge base RAG
 
+Migrazione nuova per GHL:
+- [supabase/migrations/20260413_120000_add_ghl_routing_and_qualified_webhook.sql](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/supabase/migrations/20260413_120000_add_ghl_routing_and_qualified_webhook.sql)
+- aggiunge `ghl_location_id` e `qualified_lead_webhook_url` su `public.bot_configs`
+
 Nota pratica:
-- al primo avvio del nuovo backend, se `public.bot_configs` e vuota, le configurazioni presenti in [bot_configs](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/bot_configs) vengono seedate automaticamente nel database
+- al primo avvio del nuovo backend, se `public.bot_configs` e vuota, le configurazioni presenti in [bot_configs](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/bot_configs) vengono seedate automaticamente nel database
 - dopo il seed, la dashboard salva su Supabase, non sul filesystem locale
 
 ## Env
 
 File esempio:
-- [.env.example](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/.env.example)
+- [.env.example](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/.env.example)
 
 ### Anthropic
 
@@ -183,18 +186,16 @@ File esempio:
 `META_ENFORCE_SIGNATURE`
 - produzione: `true`
 
-### Lead manager
+### GoHighLevel
 
-`LEAD_MANAGER_API_URL`
-- URL pubblico del servizio lead-manager
-- accetta sia la base URL `https://...` sia l'endpoint completo `https://.../api/leads/custom`
-- il qualifier usa questa URL sia per `POST /api/leads/custom` sia per le API interne `/api/internal/qualifier/*`
+Workflow outbound webhook verso il qualifier:
+- `POST {APP_BASE_URL}/webhooks/ghl/qualification-start`
+- il payload standard del webhook GHL contiene `location.id`, che il qualifier usa per risolvere il bot tramite `ghl_location_id`
+- se hai piu bot nella stessa location, aggiungi anche un custom data statico `bot_id`
 
-`LEAD_MANAGER_API_KEY`
-- opzionale
-- inviato come header `X-API-Key` se valorizzato
-- se mantieni `lead-manager` e `lead-qualifier` su Supabase separati, deve avere lo stesso valore di `CUSTOM_LEADS_API_KEY` sul servizio `lead-manager`
-- viene usato sia per `POST /api/leads/custom` sia per le API interne che espongono pagine/bridge del manager al qualifier
+Workflow inbound webhook del lead qualificato:
+- incolla nel bot il webhook URL generato da GHL nel campo `qualified_lead_webhook_url`
+- quando il lead viene qualificato, il servizio esegue un `POST` JSON a quell'URL
 
 ### Cloudflare crawl + RAG
 
@@ -218,7 +219,7 @@ File esempio:
 Ogni file JSON seed descrive un tenant.
 
 Esempio:
-- [bot_configs/default.json](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/bot_configs/default.json)
+- [bot_configs/default.json](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/bot_configs/default.json)
 
 Campi principali:
 - `id`
@@ -234,7 +235,8 @@ Campi principali:
 - `default_template_body_text`
 - `template_language`
 - `booking_url`
-- `lead_manager_page_id`
+- `ghl_location_id`
+- `qualified_lead_webhook_url`
 - `qualification_statuses`
 - `fields[]`
 
@@ -274,7 +276,7 @@ cp .env.example .env
 
 ```bash
 source .venv/bin/activate
-/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/.venv/bin/uvicorn app:app --reload --host 0.0.0.0 --port 8000
+/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/.venv/bin/uvicorn app:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Verifiche rapide:
@@ -311,7 +313,7 @@ Nota:
 
 ## Deploy Railway
 
-Il repo include [Dockerfile](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/Dockerfile) e [railway.toml](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/railway.toml), quindi Railway puo:
+Il repo include [Dockerfile](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/Dockerfile) e [railway.toml](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/railway.toml), quindi Railway puo:
 - installare dipendenze Python
 - buildare il frontend in `web/`
 - avviare `uvicorn`
@@ -335,7 +337,7 @@ sh -c 'uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000}'
 ## Verifiche eseguite
 
 - `python3 -m py_compile app.py lead_qualifier/*.py`
-- `pnpm build` in [web](/Users/olegbolonniy/Desktop/CHAT-CLAUDE-EDILI/web)
+- `pnpm build` in [web](/Users/olegbolonniy/Desktop/IOS_APPS/GeloAIApp/OTHER_SERVICES/lead-qualifier/web)
 - smoke test locale server:
   - `GET /healthz` -> `200`
   - `GET /api/dashboard/app-config` -> `200`
