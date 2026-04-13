@@ -36,6 +36,21 @@ def create_app() -> FastAPI:
         level=getattr(logging, settings.log_level, logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    logger = logging.getLogger(__name__)
+
+    logger.info(
+        "Starting lead-qualifier model=%s db=%s graph=%s signature_enforcement=%s",
+        settings.anthropic_model,
+        "postgres" if settings.database_url else "sqlite",
+        settings.whatsapp_graph_version,
+        settings.meta_enforce_signature,
+    )
+    if not settings.anthropic_api_key:
+        logger.warning("ANTHROPIC_API_KEY not set - agent replies will fail")
+    if not settings.whatsapp_access_token and not settings.supabase_service_role_key:
+        logger.warning("No WhatsApp token source configured (env or Vault)")
+    if not settings.meta_app_secret and settings.meta_enforce_signature:
+        logger.warning("META_APP_SECRET not set but signature enforcement is ON - webhooks will be rejected")
 
     store = create_lead_store(settings)
     config_store = BotConfigStore(

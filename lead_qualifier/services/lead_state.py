@@ -51,6 +51,8 @@ def with_initial_template(
             initial_template_parameters=[value.strip() for value in body_parameters if value.strip()],
         ),
     )
+
+
 def infer_initial_template_from_history(lead_state: LeadState, history: list[StoredMessage]) -> LeadState:
     if lead_state.metadata.has_initial_template:
         return lead_state

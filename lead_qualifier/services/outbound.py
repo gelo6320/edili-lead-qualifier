@@ -6,7 +6,7 @@ from typing import Any
 
 from lead_qualifier.domain.bot_config import BotConfig
 from lead_qualifier.domain.lead import StoredMessage
-from lead_qualifier.integrations.whatsapp.client import WhatsAppCloudClient
+from lead_qualifier.integrations.whatsapp.client import WhatsAppCloudClient, WhatsAppCloudError
 from lead_qualifier.services.lead_state import build_empty_lead_state, with_initial_template
 from lead_qualifier.services.runtime_credentials import RuntimeCredentialsService
 from lead_qualifier.storage.bot_config_store import BotConfigStore
@@ -58,25 +58,43 @@ class OutboundMessageService:
             template_name=template_name,
             body_parameters=body_parameters,
         )
-        response = self._whatsapp_client.send_template_message(
-            to=to,
-            phone_number_id=config.phone_number_id,
-            template_name=template_name,
-            language_code=resolved_language,
-            body_parameters=body_parameters,
-            access_token=access_token,
-        )
 
-        self._bootstrap_conversation(
-            bot_id=config.id,
-            wa_id=to,
-            template_id=template_id,
-            template_name=template_name,
-            language_code=resolved_language,
-            template_body=template_body,
-            rendered_text=rendered_text,
-            body_parameters=body_parameters,
+        LOGGER.info(
+            "Sending template bot=%s to=%s template=%s lang=%s params=%d",
+            bot_id, to, template_name, resolved_language, len(body_parameters),
         )
+        try:
+            response = self._whatsapp_client.send_template_message(
+                to=to,
+                phone_number_id=config.phone_number_id,
+                template_name=template_name,
+                language_code=resolved_language,
+                body_parameters=body_parameters,
+                access_token=access_token,
+            )
+        except WhatsAppCloudError as exc:
+            LOGGER.error(
+                "Template send failed bot=%s to=%s template=%s classification=%s: %s",
+                bot_id, to, template_name, exc.classification, exc,
+            )
+            raise
+
+        try:
+            self._bootstrap_conversation(
+                bot_id=config.id,
+                wa_id=to,
+                template_id=template_id,
+                template_name=template_name,
+                language_code=resolved_language,
+                template_body=template_body,
+                rendered_text=rendered_text,
+                body_parameters=body_parameters,
+            )
+        except Exception as exc:
+            LOGGER.error(
+                "Bootstrap failed after template sent bot=%s to=%s: %s",
+                bot_id, to, exc,
+            )
 
         template_payload = {
             "kind": "outbound_template",
@@ -92,6 +110,11 @@ class OutboundMessageService:
             config.id,
             to,
             StoredMessage.assistant(display=display, payload=template_payload),
+        )
+
+        LOGGER.info(
+            "Template sent bot=%s to=%s template=%s rendered=%.80s",
+            bot_id, to, template_name, rendered_text,
         )
         return {
             "meta": response,

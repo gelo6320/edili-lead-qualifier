@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import replace
 
 from lead_qualifier.domain.bot_config import BotConfig
 from lead_qualifier.domain.lead import InboundWhatsAppMessage, LeadState, StoredMessage
 from lead_qualifier.integrations.anthropic.client import AnthropicLeadQualifier
-from lead_qualifier.integrations.whatsapp.client import WhatsAppCloudClient
+from lead_qualifier.integrations.whatsapp.client import WhatsAppCloudClient, WhatsAppCloudError
 from lead_qualifier.integrations.whatsapp.parser import iter_inbound_messages
 from lead_qualifier.services.lead_media import LeadMediaError, LeadMediaService
 from lead_qualifier.services.lead_state import (
@@ -25,6 +26,9 @@ LOGGER = logging.getLogger(__name__)
 UNSUPPORTED_MESSAGE_REPLY = (
     "Per aiutarti bene, scrivimi in testo i dettagli della richiesta, cosi posso raccogliere le informazioni giuste."
 )
+
+_WHATSAPP_RETRY_DELAY_SECONDS = 2.0
+_WHATSAPP_MAX_RETRIES = 2
 
 
 class InboundMessageService:
@@ -66,8 +70,17 @@ class InboundMessageService:
 
         try:
             access_token = self._runtime_credentials.get_whatsapp_access_token(config)
+        except Exception as exc:
+            self._store.mark_inbound_message_failed(message.message_id, f"credential_error: {exc}")
+            LOGGER.error(
+                "Credential retrieval failed msg=%s bot=%s: %s",
+                message.message_id, config.id, exc,
+            )
+            return
+
+        try:
             if not message.has_text_or_media:
-                self._whatsapp_client.send_text_message(
+                self._send_whatsapp_with_retry(
                     to=message.wa_id,
                     body=UNSUPPORTED_MESSAGE_REPLY,
                     phone_number_id=config.phone_number_id,
@@ -97,6 +110,7 @@ class InboundMessageService:
             if not knowledge_query and message.image_caption.strip():
                 knowledge_query = message.image_caption.strip()
 
+            t0 = time.monotonic()
             response, metadata, usage = self._qualifier.generate_reply(
                 config,
                 history + [user_message],
@@ -108,7 +122,9 @@ class InboundMessageService:
                     query=knowledge_query,
                 ),
             )
-            self._whatsapp_client.send_text_message(
+            agent_latency_ms = int((time.monotonic() - t0) * 1000)
+
+            self._send_whatsapp_with_retry(
                 to=message.wa_id,
                 body=response.reply_text,
                 phone_number_id=config.phone_number_id,
@@ -120,15 +136,59 @@ class InboundMessageService:
             self._store.mark_inbound_message_completed(message.message_id)
 
             LOGGER.info(
-                "Processed inbound message %s bot=%s wa_id=%s usage=%s",
+                "Processed msg=%s bot=%s wa_id=%s status=%s agent_ms=%d usage=%s",
                 message.message_id,
                 config.id,
                 message.wa_id,
+                response.qualification_status,
+                agent_latency_ms,
                 usage,
+            )
+        except WhatsAppCloudError as exc:
+            self._store.mark_inbound_message_failed(
+                message.message_id,
+                f"whatsapp_{exc.classification}: {exc}",
+            )
+            LOGGER.error(
+                "WhatsApp API error msg=%s bot=%s classification=%s retryable=%s: %s",
+                message.message_id, config.id, exc.classification, exc.retryable, exc,
             )
         except Exception as exc:
             self._store.mark_inbound_message_failed(message.message_id, str(exc))
-            LOGGER.exception("Failed to process inbound message %s", message.message_id)
+            LOGGER.exception(
+                "Unexpected error msg=%s bot=%s wa_id=%s",
+                message.message_id, config.id, message.wa_id,
+            )
+
+    def _send_whatsapp_with_retry(
+        self,
+        *,
+        to: str,
+        body: str,
+        phone_number_id: str,
+        reply_to_message_id: str | None,
+        access_token: str,
+    ) -> None:
+        last_error: WhatsAppCloudError | None = None
+        for attempt in range(_WHATSAPP_MAX_RETRIES + 1):
+            try:
+                self._whatsapp_client.send_text_message(
+                    to=to,
+                    body=body,
+                    phone_number_id=phone_number_id,
+                    reply_to_message_id=reply_to_message_id,
+                    access_token=access_token,
+                )
+                return
+            except WhatsAppCloudError as exc:
+                last_error = exc
+                if not exc.retryable or attempt >= _WHATSAPP_MAX_RETRIES:
+                    raise
+                LOGGER.warning(
+                    "WhatsApp send retry %d/%d classification=%s to=%s: %s",
+                    attempt + 1, _WHATSAPP_MAX_RETRIES, exc.classification, to, exc,
+                )
+                time.sleep(_WHATSAPP_RETRY_DELAY_SECONDS * (attempt + 1))
 
     def _build_user_message(
         self,

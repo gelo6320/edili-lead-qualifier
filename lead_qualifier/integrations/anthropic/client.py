@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import time
 from dataclasses import replace
 from typing import Any
 
@@ -12,6 +14,8 @@ from lead_qualifier.domain.bot_config import BotConfig
 from lead_qualifier.domain.lead import LeadQualificationResponse, LeadRuntimeMetadata, LeadState, StoredMessage
 from lead_qualifier.prompting.builder import build_response_schema, build_system_blocks
 from lead_qualifier.services.agent_toolbox import LeadQualifierToolContext, LeadQualifierToolbox
+
+LOGGER = logging.getLogger(__name__)
 
 
 class AnthropicLeadQualifier:
@@ -50,8 +54,15 @@ class AnthropicLeadQualifier:
 
         current_metadata = lead_state.metadata
         total_usage: dict[str, int] = {}
+        message_count = len(anthropic_messages)
 
-        for _ in range(3):
+        LOGGER.info(
+            "Agent call start bot=%s wa_id=%s model=%s history_messages=%d tools=%s",
+            config.id, wa_id, self._settings.anthropic_model,
+            message_count, bool(self._toolbox.definitions(tool_context)),
+        )
+
+        for turn in range(3):
             tools = self._toolbox.definitions(tool_context)
             system_blocks = build_system_blocks(
                 config,
@@ -59,6 +70,7 @@ class AnthropicLeadQualifier:
                 tool_rules=self._toolbox.tool_rules(tool_context),
                 knowledge_context=knowledge_context,
             )
+            t0 = time.monotonic()
             response = self._require_client().messages.create(
                 model=self._settings.anthropic_model,
                 max_tokens=900,
@@ -69,7 +81,14 @@ class AnthropicLeadQualifier:
                 output_config={"format": {"type": "json_schema", "schema": response_schema}},
                 tools=tools,
             )
-            _accumulate_usage(total_usage, _extract_usage(response))
+            api_ms = int((time.monotonic() - t0) * 1000)
+            turn_usage = _extract_usage(response)
+            _accumulate_usage(total_usage, turn_usage)
+
+            LOGGER.info(
+                "Agent API turn=%d bot=%s wa_id=%s api_ms=%d stop=%s usage=%s",
+                turn, config.id, wa_id, api_ms, response.stop_reason, turn_usage,
+            )
 
             tool_use_blocks = [
                 block for block in response.content if getattr(block, "type", None) == "tool_use"
@@ -87,6 +106,10 @@ class AnthropicLeadQualifier:
                     if not isinstance(block, ToolUseBlock):
                         continue
                     try:
+                        LOGGER.info(
+                            "Tool exec bot=%s wa_id=%s tool=%s",
+                            config.id, wa_id, block.name,
+                        )
                         outcome = self._toolbox.execute(
                             tool_name=block.name,
                             tool_input=block.input,
@@ -108,7 +131,15 @@ class AnthropicLeadQualifier:
                                 "content": json.dumps(outcome.result, ensure_ascii=False),
                             }
                         )
+                        LOGGER.info(
+                            "Tool success bot=%s wa_id=%s tool=%s",
+                            config.id, wa_id, block.name,
+                        )
                     except Exception as exc:
+                        LOGGER.error(
+                            "Tool failed bot=%s wa_id=%s tool=%s: %s",
+                            config.id, wa_id, block.name, exc,
+                        )
                         tool_results.append(
                             {
                                 "type": "tool_result",
@@ -126,7 +157,16 @@ class AnthropicLeadQualifier:
                 )
                 continue
 
-            payload = json.loads(_extract_text(response))
+            raw_text = _extract_text(response)
+            try:
+                payload = json.loads(raw_text)
+            except json.JSONDecodeError as exc:
+                LOGGER.error(
+                    "Agent JSON parse failed bot=%s wa_id=%s: %s raw=%.200s",
+                    config.id, wa_id, exc, raw_text,
+                )
+                raise RuntimeError("Claude ha prodotto JSON non valido.") from exc
+
             qualification = LeadQualificationResponse.from_payload(
                 payload,
                 allowed_field_keys=config.field_keys,
@@ -135,8 +175,17 @@ class AnthropicLeadQualifier:
                 default_status=config.default_status,
                 existing_field_values=tool_context.lead_state.field_values,
             )
+            LOGGER.info(
+                "Agent done bot=%s wa_id=%s status=%s missing=%s total_usage=%s",
+                config.id, wa_id, qualification.qualification_status,
+                qualification.missing_fields, total_usage,
+            )
             return qualification, current_metadata, total_usage
 
+        LOGGER.error(
+            "Agent exhausted tool turns bot=%s wa_id=%s total_usage=%s",
+            config.id, wa_id, total_usage,
+        )
         raise RuntimeError("Claude non ha prodotto una risposta finale valida dopo i tool.")
 
 

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from typing import Any
 
 import httpx
 
 from lead_qualifier.core.settings import Settings
+
+LOGGER = logging.getLogger(__name__)
 
 
 class WhatsAppCloudError(RuntimeError):
@@ -90,6 +93,8 @@ class WhatsAppCloudClient:
         *,
         access_token: str | None = None,
     ) -> dict[str, Any]:
+        msg_type = payload.get("type", "unknown")
+        recipient = payload.get("to", "unknown")
         try:
             response = httpx.post(
                 self._build_endpoint(phone_number_id),
@@ -98,11 +103,26 @@ class WhatsAppCloudClient:
                 timeout=self._settings.http_timeout_seconds,
             )
         except httpx.HTTPError as exc:
+            LOGGER.error(
+                "WhatsApp HTTP error type=%s to=%s phone_number_id=%s: %s",
+                msg_type, recipient, phone_number_id, exc,
+            )
             raise WhatsAppCloudError(str(exc), status_code=502) from exc
 
         data = _parse_json(response)
+        if not response.is_success:
+            meta_info = _extract_meta_error_info(data, response.status_code)
+            LOGGER.error(
+                "WhatsApp API error type=%s to=%s http=%d classification=%s retryable=%s: %s",
+                msg_type, recipient, response.status_code,
+                meta_info["classification"], meta_info["retryable"], meta_info["message"],
+            )
         _raise_for_error(response, data)
 
+        LOGGER.info(
+            "WhatsApp sent type=%s to=%s phone_number_id=%s",
+            msg_type, recipient, phone_number_id,
+        )
         if isinstance(data, dict):
             return data
         return {"response": data}

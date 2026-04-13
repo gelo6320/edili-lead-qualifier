@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import httpx
@@ -7,6 +8,8 @@ import httpx
 from lead_qualifier.core.settings import Settings
 from lead_qualifier.domain.bot_config import BotConfig
 from lead_qualifier.domain.lead import LeadState
+
+LOGGER = logging.getLogger(__name__)
 
 
 class QualifiedLeadWebhookClient:
@@ -48,6 +51,10 @@ class QualifiedLeadWebhookClient:
             },
         }
 
+        LOGGER.info(
+            "Delivering qualified lead bot=%s wa_id=%s webhook=%.60s",
+            config.id, wa_id, target_url,
+        )
         try:
             response = httpx.post(
                 target_url,
@@ -56,10 +63,23 @@ class QualifiedLeadWebhookClient:
                 timeout=self._settings.http_timeout_seconds,
             )
         except httpx.HTTPError as exc:
+            LOGGER.error(
+                "Qualified lead webhook HTTP error bot=%s wa_id=%s: %s",
+                config.id, wa_id, exc,
+            )
             raise RuntimeError(str(exc)) from exc
 
         if not response.is_success:
+            LOGGER.error(
+                "Qualified lead webhook rejected bot=%s wa_id=%s http=%d",
+                config.id, wa_id, response.status_code,
+            )
             raise RuntimeError(_format_error_message(response))
+
+        LOGGER.info(
+            "Qualified lead delivered bot=%s wa_id=%s http=%d",
+            config.id, wa_id, response.status_code,
+        )
 
         try:
             body: Any = response.json()

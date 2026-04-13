@@ -92,7 +92,7 @@ class Settings:
             meta_api_version=os.getenv("META_API_VERSION", "v25.0").strip() or "v25.0",
             oauth_state_secret=os.getenv("OAUTH_STATE_SECRET", "").strip(),
             whatsapp_api_base_url=os.getenv("WHATSAPP_API_BASE_URL", "https://graph.facebook.com").rstrip("/"),
-            whatsapp_graph_version=os.getenv("WHATSAPP_GRAPH_VERSION", "v23.0").strip() or "v23.0",
+            whatsapp_graph_version=os.getenv("WHATSAPP_GRAPH_VERSION", "v25.0").strip() or "v25.0",
             whatsapp_access_token=os.getenv("WHATSAPP_ACCESS_TOKEN", "").strip(),
             whatsapp_business_account_id=os.getenv("WHATSAPP_BUSINESS_ACCOUNT_ID", "").strip(),
             whatsapp_verify_token=os.getenv("WHATSAPP_VERIFY_TOKEN", "").strip(),
