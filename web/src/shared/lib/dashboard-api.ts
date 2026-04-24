@@ -56,6 +56,19 @@ async function dashboardFetch<T>(
   return parseJson<T>(response)
 }
 
+function toBotConfigPayload(payload: BotConfig): BotConfig {
+  return {
+    ...payload,
+    fields: payload.fields.map((field) => ({
+      key: field.key,
+      label: field.label,
+      description: field.description,
+      required: field.required,
+      options: field.options,
+    })),
+  }
+}
+
 export function getDashboardAppConfig() {
   return dashboardFetch<DashboardAppConfig>('/api/dashboard/app-config')
 }
@@ -77,7 +90,7 @@ export function createBot(token: string, payload: BotConfig) {
     '/api/dashboard/bots',
     {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(toBotConfigPayload(payload)),
     },
     token,
   )
@@ -88,7 +101,7 @@ export function updateBot(token: string, payload: BotConfig) {
     `/api/dashboard/bots/${payload.id}`,
     {
       method: 'PUT',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(toBotConfigPayload(payload)),
     },
     token,
   )

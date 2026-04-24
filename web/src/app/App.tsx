@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   ChevronsLeft,
   ChevronsRight,
@@ -71,6 +71,17 @@ function normalizeUrlMessage(value: string): string {
   return value.replaceAll('_', ' ')
 }
 
+function getDashboardErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof DashboardApiError ? error.detail : fallback
+}
+
+function isAuthorizationError(error: unknown): boolean {
+  return (
+    error instanceof DashboardApiError &&
+    (error.status === 401 || error.status === 403)
+  )
+}
+
 function App() {
   const [configError, setConfigError] = useState('')
   const [isBooting, setIsBooting] = useState(true)
@@ -114,6 +125,44 @@ function App() {
     if (typeof window === 'undefined') return false
     return window.localStorage.getItem('dashboard-sidebar-collapsed') === 'true'
   })
+
+  const signOutIfAuthorizationError = useCallback(
+    async (error: unknown) => {
+      if (!supabase || !isAuthorizationError(error)) {
+        return
+      }
+
+      await supabase.auth.signOut()
+    },
+    [supabase],
+  )
+
+  const syncSelection = useCallback(
+    (botList: BotConfig[], preferredBotId: string | null) => {
+      if (preferredBotId) {
+        const selectedBot = botList.find((bot) => bot.id === preferredBotId)
+        if (selectedBot) {
+          setSelectedBotId(selectedBot.id)
+          setDraftBot(cloneBotConfig(selectedBot))
+          setDraftMode('existing')
+          return
+        }
+      }
+
+      if (botList.length > 0) {
+        const firstBot = botList[0]
+        setSelectedBotId(firstBot.id)
+        setDraftBot(cloneBotConfig(firstBot))
+        setDraftMode('existing')
+        return
+      }
+
+      setSelectedBotId(null)
+      setDraftBot(createEmptyBotConfig())
+      setDraftMode('new')
+    },
+    [],
+  )
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -198,65 +247,70 @@ function App() {
     }
 
     let active = true
-    async function loadAll() {
-      setIsLoadingDashboard(true)
-      setIsLoadingMetaAssets(true)
-      setDashboardError('')
-      setMetaAssetsError('')
+    let pendingDashboardRequests = 2
 
-      const [dashboardResult, assetsResult] = await Promise.allSettled([
-        Promise.all([
-          getDashboardSession(accessToken),
-          listBots(accessToken),
-        ]),
-        getMetaAssets(accessToken),
-      ])
-
-      if (!active) return
-
-      if (dashboardResult.status === 'fulfilled') {
-        const [sessionPayload, botList] = dashboardResult.value
-        setUser(sessionPayload.user)
-        setBots(botList)
-        syncSelection(botList, null)
-      } else {
-        const error = dashboardResult.reason
-        const message =
-          error instanceof DashboardApiError
-            ? error.detail
-            : 'Impossibile caricare i dati della dashboard.'
-        setDashboardError(message)
-
-        if (
-          error instanceof DashboardApiError &&
-          (error.status === 401 || error.status === 403) &&
-          supabase
-        ) {
-          await supabase.auth.signOut()
-        }
+    function finishDashboardRequest() {
+      pendingDashboardRequests -= 1
+      if (active && pendingDashboardRequests === 0) {
+        setIsLoadingDashboard(false)
       }
-
-      if (assetsResult.status === 'fulfilled') {
-        setMetaAssets(assetsResult.value)
-      } else {
-        const error = assetsResult.reason
-        setMetaAssetsError(
-          error instanceof DashboardApiError
-            ? error.detail
-            : 'Impossibile caricare asset Meta.',
-        )
-      }
-
-      setIsLoadingDashboard(false)
-      setIsLoadingMetaAssets(false)
     }
 
-    void loadAll()
+    setIsLoadingDashboard(true)
+    setIsLoadingMetaAssets(true)
+    setDashboardError('')
+    setMetaAssetsError('')
+
+    void getDashboardSession(accessToken)
+      .then((sessionPayload) => {
+        if (!active) return
+        setUser(sessionPayload.user)
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+        setDashboardError((current) =>
+          current || getDashboardErrorMessage(error, 'Impossibile caricare la sessione.'),
+        )
+        void signOutIfAuthorizationError(error)
+      })
+      .finally(finishDashboardRequest)
+
+    void listBots(accessToken)
+      .then((botList) => {
+        if (!active) return
+        setBots(botList)
+        syncSelection(botList, null)
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+        setDashboardError((current) =>
+          current ||
+          getDashboardErrorMessage(error, 'Impossibile caricare i bot della dashboard.'),
+        )
+        void signOutIfAuthorizationError(error)
+      })
+      .finally(finishDashboardRequest)
+
+    void getMetaAssets(accessToken)
+      .then((assets) => {
+        if (!active) return
+        setMetaAssets(assets)
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+        setMetaAssetsError(
+          getDashboardErrorMessage(error, 'Impossibile caricare asset Meta.'),
+        )
+        void signOutIfAuthorizationError(error)
+      })
+      .finally(() => {
+        if (active) setIsLoadingMetaAssets(false)
+      })
 
     return () => {
       active = false
     }
-  }, [accessToken, supabase])
+  }, [accessToken, signOutIfAuthorizationError, syncSelection])
 
   useEffect(() => {
     if (!accessToken || typeof window === 'undefined') {
@@ -291,30 +345,6 @@ function App() {
     setTemplateError('')
     setCrawlNotice('')
     setCrawlError('')
-  }
-
-  function syncSelection(botList: BotConfig[], preferredBotId: string | null) {
-    if (preferredBotId) {
-      const selectedBot = botList.find((bot) => bot.id === preferredBotId)
-      if (selectedBot) {
-        setSelectedBotId(selectedBot.id)
-        setDraftBot(cloneBotConfig(selectedBot))
-        setDraftMode('existing')
-        return
-      }
-    }
-
-    if (botList.length > 0) {
-      const firstBot = botList[0]
-      setSelectedBotId(firstBot.id)
-      setDraftBot(cloneBotConfig(firstBot))
-      setDraftMode('existing')
-      return
-    }
-
-    setSelectedBotId(null)
-    setDraftBot(createEmptyBotConfig())
-    setDraftMode('new')
   }
 
   function selectBot(botId: string) {
@@ -354,48 +384,32 @@ function App() {
       setMetaAssetsError('')
     }
 
-    const [botsResult, assetsResult] = await Promise.allSettled([
-      listBots(accessToken),
-      includeMetaAssets ? getMetaAssets(accessToken) : Promise.resolve(null),
-    ])
-
-    if (botsResult.status === 'fulfilled') {
-      setBots(botsResult.value)
-      syncSelection(botsResult.value, preferredBotId)
-    } else {
-      const error = botsResult.reason
-      setDashboardError(
-        error instanceof DashboardApiError
-          ? error.detail
-          : 'Impossibile caricare i dati della dashboard.',
-      )
-
-      if (
-        error instanceof DashboardApiError &&
-        (error.status === 401 || error.status === 403) &&
-        supabase
-      ) {
-        await supabase.auth.signOut()
-      }
-    }
-
-    if (includeMetaAssets) {
-      if (assetsResult.status === 'fulfilled' && assetsResult.value) {
-        setMetaAssets(assetsResult.value)
-      } else if (assetsResult.status === 'rejected') {
-        const error = assetsResult.reason
-        setMetaAssetsError(
-          error instanceof DashboardApiError
-            ? error.detail
-            : 'Impossibile caricare asset Meta.',
+    const botsRequest = listBots(accessToken)
+      .then((botList) => {
+        setBots(botList)
+        syncSelection(botList, preferredBotId)
+      })
+      .catch(async (error: unknown) => {
+        setDashboardError(
+          getDashboardErrorMessage(error, 'Impossibile caricare i dati della dashboard.'),
         )
-      }
-    }
+        await signOutIfAuthorizationError(error)
+      })
+      .finally(() => setIsLoadingDashboard(false))
 
-    setIsLoadingDashboard(false)
-    if (includeMetaAssets) {
-      setIsLoadingMetaAssets(false)
-    }
+    const assetsRequest = includeMetaAssets
+      ? getMetaAssets(accessToken)
+          .then((assets) => setMetaAssets(assets))
+          .catch(async (error: unknown) => {
+            setMetaAssetsError(
+              getDashboardErrorMessage(error, 'Impossibile caricare asset Meta.'),
+            )
+            await signOutIfAuthorizationError(error)
+          })
+          .finally(() => setIsLoadingMetaAssets(false))
+      : Promise.resolve()
+
+    await Promise.allSettled([botsRequest, assetsRequest])
   }
 
   async function refreshBots(

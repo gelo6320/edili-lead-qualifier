@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 .pytest_cache/
 data/*.sqlite3
+SOP_NUOVO_CLIENTE.md

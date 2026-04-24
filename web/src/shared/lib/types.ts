@@ -1,4 +1,5 @@
 export type BotFieldConfig = {
+  editor_id?: string
   key: string
   label: string
   description: string

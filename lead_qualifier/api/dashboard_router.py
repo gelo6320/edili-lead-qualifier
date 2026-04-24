@@ -271,14 +271,17 @@ def build_dashboard_api_router(
         if config is None or (config.owner_user_id and config.owner_user_id != user.id):
             raise HTTPException(status_code=404, detail="Bot non trovato.")
         try:
-            result = website_personalization.personalize_bot_from_site(
-                bot=config,
-                owner_user_id=user.id,
-                site_url=payload.site_url,
+            result = await run_in_threadpool(
+                partial(
+                    website_personalization.personalize_bot_from_site,
+                    bot=config,
+                    owner_user_id=user.id,
+                    site_url=payload.site_url,
+                )
             )
         except WebsitePersonalizationError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
-        saved = config_store.upsert(result["bot"])
+        saved = await run_in_threadpool(config_store.upsert, result["bot"])
         return {
             "bot": saved.model_dump(mode="json"),
             "pages_crawled": result["pages_crawled"],

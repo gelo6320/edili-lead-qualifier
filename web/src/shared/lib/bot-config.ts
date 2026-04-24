@@ -2,8 +2,19 @@ import type { BotConfig, BotFieldConfig } from '@/shared/lib/types'
 
 const DEFAULT_STATUSES = ['new', 'in_progress', 'qualified', 'follow_up']
 
+function createEditorId(): string {
+  return crypto.randomUUID()
+}
+
+function withEditorIds(fields: BotFieldConfig[]): BotFieldConfig[] {
+  return fields.map((field) => ({
+    ...field,
+    editor_id: field.editor_id ?? createEditorId(),
+  }))
+}
+
 function createConstructionDefaults(): BotFieldConfig[] {
-  return [
+  return withEditorIds([
     {
       key: 'tipo_lavoro',
       label: 'Tipo di lavoro',
@@ -52,12 +63,13 @@ function createConstructionDefaults(): BotFieldConfig[] {
       required: true,
       options: [],
     },
-  ]
+  ])
 }
 
 export function createEmptyField(): BotFieldConfig {
   const suffix = crypto.randomUUID().split('-')[0]
   return {
+    editor_id: createEditorId(),
     key: `campo_${suffix}`,
     label: 'Nuovo campo',
     description: '',
@@ -104,6 +116,7 @@ export function cloneBotConfig(bot: BotConfig): BotConfig {
     qualification_statuses: [...bot.qualification_statuses],
     fields: bot.fields.map((field) => ({
       ...field,
+      editor_id: field.editor_id ?? createEditorId(),
       options: [...field.options],
     })),
   }

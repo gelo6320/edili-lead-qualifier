@@ -58,7 +58,7 @@ export function FieldListEditor({ bot, onChange }: FieldListEditorProps) {
 
       <div className="divide-y divide-border">
         {bot.fields.map((field, index) => (
-          <div key={`${field.key}-${index}`} className="p-4">
+          <div key={field.editor_id ?? `field-${index}`} className="p-4">
             <div className="mb-3 flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground">
                 Campo {index + 1}

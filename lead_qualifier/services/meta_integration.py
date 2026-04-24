@@ -291,8 +291,19 @@ class MetaIntegrationService:
         waba: dict[str, str],
     ) -> dict[str, Any]:
         waba_id = _clean(waba.get("id"))
-        phone_numbers = self._list_phone_numbers(access_token, waba_id)
-        templates = self._list_templates(access_token, waba_id)
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            phone_numbers_future = executor.submit(
+                self._list_phone_numbers,
+                access_token,
+                waba_id,
+            )
+            templates_future = executor.submit(
+                self._list_templates,
+                access_token,
+                waba_id,
+            )
+            phone_numbers = phone_numbers_future.result()
+            templates = templates_future.result()
         return {
             "id": waba_id,
             "name": _clean(waba.get("name")) or waba_id,
