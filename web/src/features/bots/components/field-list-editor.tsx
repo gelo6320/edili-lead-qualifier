@@ -1,3 +1,4 @@
+import { memo, useCallback, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import {
   commaSeparatedToList,
@@ -16,31 +17,154 @@ type FieldListEditorProps = {
   onChange: (bot: BotConfig) => void
 }
 
+type FieldEditorRowProps = {
+  canRemove: boolean
+  field: BotFieldConfig
+  index: number
+  onRemove: (index: number) => void
+  onUpdate: (index: number, patch: Partial<BotFieldConfig>) => void
+}
+
+const FieldEditorRow = memo(function FieldEditorRow({
+  canRemove,
+  field,
+  index,
+  onRemove,
+  onUpdate,
+}: FieldEditorRowProps) {
+  return (
+    <div className="p-4 [content-visibility:auto] [contain-intrinsic-size:184px]">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground">
+          Campo {index + 1}
+        </span>
+        <Button
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+          className="text-muted-foreground hover:text-destructive"
+          onClick={() => onRemove(index)}
+          disabled={!canRemove}
+          aria-label="Rimuovi campo"
+        >
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+        <div className="grid gap-1.5">
+          <Label
+            htmlFor={`field-key-${index}`}
+            className="text-xs font-medium text-muted-foreground"
+          >
+            Chiave
+          </Label>
+          <Input
+            id={`field-key-${index}`}
+            className="h-9 rounded-md"
+            value={field.key}
+            onChange={(event) => onUpdate(index, { key: event.target.value })}
+          />
+        </div>
+
+        <div className="grid gap-1.5">
+          <Label
+            htmlFor={`field-label-${index}`}
+            className="text-xs font-medium text-muted-foreground"
+          >
+            Etichetta
+          </Label>
+          <Input
+            id={`field-label-${index}`}
+            className="h-9 rounded-md"
+            value={field.label}
+            onChange={(event) => onUpdate(index, { label: event.target.value })}
+          />
+        </div>
+
+        <div className="grid gap-1.5">
+          <Label
+            htmlFor={`field-options-${index}`}
+            className="text-xs font-medium text-muted-foreground"
+          >
+            Opzioni
+          </Label>
+          <Input
+            id={`field-options-${index}`}
+            className="h-9 rounded-md"
+            placeholder="si, no, forse"
+            value={listToCommaSeparated(field.options)}
+            onChange={(event) =>
+              onUpdate(index, {
+                options: commaSeparatedToList(event.target.value),
+              })
+            }
+          />
+        </div>
+
+        <div className="flex items-center gap-2 md:self-end md:pb-1">
+          <Switch
+            checked={field.required}
+            onCheckedChange={(checked) =>
+              onUpdate(index, { required: Boolean(checked) })
+            }
+          />
+          <Label className="text-xs font-medium">Richiesto</Label>
+        </div>
+
+        <div className="grid gap-1.5 md:col-span-4">
+          <Label
+            htmlFor={`field-description-${index}`}
+            className="text-xs font-medium text-muted-foreground"
+          >
+            Descrizione
+          </Label>
+          <Textarea
+            id={`field-description-${index}`}
+            className="min-h-20 rounded-md"
+            value={field.description}
+            onChange={(event) => onUpdate(index, { description: event.target.value })}
+          />
+        </div>
+      </div>
+    </div>
+  )
+})
+
 export function FieldListEditor({ bot, onChange }: FieldListEditorProps) {
-  function updateField(index: number, patch: Partial<BotFieldConfig>) {
-    const nextFields = bot.fields.map((field, currentIndex) =>
+  const botRef = useRef(bot)
+
+  useEffect(() => {
+    botRef.current = bot
+  }, [bot])
+
+  const updateField = useCallback((index: number, patch: Partial<BotFieldConfig>) => {
+    const currentBot = botRef.current
+    const nextFields = currentBot.fields.map((field, currentIndex) =>
       currentIndex === index ? { ...field, ...patch } : field,
     )
-    onChange({ ...bot, fields: nextFields })
-  }
+    onChange({ ...currentBot, fields: nextFields })
+  }, [onChange])
 
-  function addField() {
+  const addField = useCallback(() => {
+    const currentBot = botRef.current
     onChange({
-      ...bot,
-      fields: [...bot.fields, createEmptyField()],
+      ...currentBot,
+      fields: [...currentBot.fields, createEmptyField()],
     })
-  }
+  }, [onChange])
 
-  function removeField(index: number) {
-    if (bot.fields.length === 1) {
+  const removeField = useCallback((index: number) => {
+    const currentBot = botRef.current
+    if (currentBot.fields.length === 1) {
       return
     }
 
     onChange({
-      ...bot,
-      fields: bot.fields.filter((_, currentIndex) => currentIndex !== index),
+      ...currentBot,
+      fields: currentBot.fields.filter((_, currentIndex) => currentIndex !== index),
     })
-  }
+  }, [onChange])
 
   return (
     <section className="rounded-md border border-border bg-card">
@@ -58,101 +182,14 @@ export function FieldListEditor({ bot, onChange }: FieldListEditorProps) {
 
       <div className="divide-y divide-border">
         {bot.fields.map((field, index) => (
-          <div key={field.editor_id ?? `field-${index}`} className="p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">
-                Campo {index + 1}
-              </span>
-              <Button
-                size="icon-sm"
-                type="button"
-                variant="ghost"
-                className="text-muted-foreground hover:text-destructive"
-                onClick={() => removeField(index)}
-                disabled={bot.fields.length === 1}
-                aria-label="Rimuovi campo"
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
-              <div className="grid gap-1.5">
-                <Label
-                  htmlFor={`field-key-${index}`}
-                  className="text-xs font-medium text-muted-foreground"
-                >
-                  Chiave
-                </Label>
-                <Input
-                  id={`field-key-${index}`}
-                  className="h-9 rounded-md"
-                  value={field.key}
-                  onChange={(event) => updateField(index, { key: event.target.value })}
-                />
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label
-                  htmlFor={`field-label-${index}`}
-                  className="text-xs font-medium text-muted-foreground"
-                >
-                  Etichetta
-                </Label>
-                <Input
-                  id={`field-label-${index}`}
-                  className="h-9 rounded-md"
-                  value={field.label}
-                  onChange={(event) => updateField(index, { label: event.target.value })}
-                />
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label
-                  htmlFor={`field-options-${index}`}
-                  className="text-xs font-medium text-muted-foreground"
-                >
-                  Opzioni
-                </Label>
-                <Input
-                  id={`field-options-${index}`}
-                  className="h-9 rounded-md"
-                  placeholder="si, no, forse"
-                  value={listToCommaSeparated(field.options)}
-                  onChange={(event) =>
-                    updateField(index, {
-                      options: commaSeparatedToList(event.target.value),
-                    })
-                  }
-                />
-              </div>
-
-              <div className="flex items-center gap-2 md:self-end md:pb-1">
-                <Switch
-                  checked={field.required}
-                  onCheckedChange={(checked) =>
-                    updateField(index, { required: Boolean(checked) })
-                  }
-                />
-                <Label className="text-xs font-medium">Richiesto</Label>
-              </div>
-
-              <div className="grid gap-1.5 md:col-span-4">
-                <Label
-                  htmlFor={`field-description-${index}`}
-                  className="text-xs font-medium text-muted-foreground"
-                >
-                  Descrizione
-                </Label>
-                <Textarea
-                  id={`field-description-${index}`}
-                  className="min-h-20 rounded-md"
-                  value={field.description}
-                  onChange={(event) => updateField(index, { description: event.target.value })}
-                />
-              </div>
-            </div>
-          </div>
+          <FieldEditorRow
+            key={field.editor_id ?? `field-${index}`}
+            canRemove={bot.fields.length > 1}
+            field={field}
+            index={index}
+            onRemove={removeField}
+            onUpdate={updateField}
+          />
         ))}
       </div>
     </section>

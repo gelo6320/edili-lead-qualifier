@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Check } from 'lucide-react'
 import { FieldListEditor } from '@/features/bots/components/field-list-editor'
 import {
@@ -20,6 +20,11 @@ const SELECT_CLASS_NAME =
   'h-9 w-full cursor-pointer appearance-none rounded-md border border-border bg-background px-2.5 pr-8 text-sm transition-colors hover:border-foreground/30 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60'
 
 const INPUT_CLASS_NAME = 'h-9 rounded-md'
+
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat('it-IT', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
 
 type BotEditorProps = {
   bot: BotConfig
@@ -55,10 +60,7 @@ function formatDateTime(value: string): string {
     return value
   }
 
-  return new Intl.DateTimeFormat('it-IT', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date)
+  return DATE_TIME_FORMATTER.format(date)
 }
 
 function getSelectedWaba(
@@ -103,7 +105,7 @@ type SectionProps = {
 
 function Section({ title, description, action, children }: SectionProps) {
   return (
-    <section className="rounded-md border border-border bg-card">
+    <section className="rounded-md border border-border bg-card [content-visibility:auto] [contain-intrinsic-size:220px]">
       <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold leading-tight">{title}</h2>
@@ -159,10 +161,21 @@ export function BotEditor({
   onReloadMetaAssets,
   onSave,
 }: BotEditorProps) {
-  const selectedWaba = getSelectedWaba(bot, metaAssets)
+  const selectedWaba = useMemo(
+    () => getSelectedWaba(bot, metaAssets),
+    [bot.meta_waba_id, metaAssets],
+  )
   const phoneOptions = selectedWaba?.phone_numbers ?? []
   const templateOptions = selectedWaba?.templates ?? []
-  const selectedTemplate = matchTemplate(bot, templateOptions)
+  const selectedTemplate = useMemo(
+    () => matchTemplate(bot, templateOptions),
+    [
+      bot.default_template_id,
+      bot.default_template_name,
+      bot.template_language,
+      templateOptions,
+    ],
+  )
   const selectedTemplateBody = selectedTemplate?.body_text || bot.default_template_body_text
 
   function patch<K extends keyof BotConfig>(key: K, value: BotConfig[K]) {

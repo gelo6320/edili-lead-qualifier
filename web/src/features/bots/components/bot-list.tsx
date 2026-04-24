@@ -55,7 +55,7 @@ export function BotList({
               key={bot.id}
               type="button"
               className={cn(
-                'group rounded-xl border p-3.5 text-left transition-all',
+                'group rounded-xl border p-3.5 text-left transition-colors duration-150',
                 isActive
                   ? 'border-primary/30 bg-primary/[0.06] shadow-sm'
                   : 'border-transparent bg-background hover:border-border hover:bg-muted/40',

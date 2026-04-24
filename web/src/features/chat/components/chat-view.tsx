@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Loader2, Trash2 } from 'lucide-react'
 import { GeloLogo } from '@/shared/ui/gelo-logo'
 
@@ -97,10 +97,13 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
   }, [accessToken, bot.id, selectedWaId])
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    messagesEndRef.current?.scrollIntoView({ block: 'end' })
   }, [messages])
 
-  const selectedLead = leads.find((l) => l.wa_id === selectedWaId)
+  const selectedLead = useMemo(
+    () => leads.find((lead) => lead.wa_id === selectedWaId),
+    [leads, selectedWaId],
+  )
 
   async function handleDeleteConversation(waId: string) {
     if (deletingWaId) return
@@ -163,7 +166,7 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                     <li
                       key={lead.wa_id}
                       className={cn(
-                        'group/lead flex items-center gap-1',
+                        'group/lead flex items-center gap-1 [content-visibility:auto] [contain-intrinsic-size:56px]',
                         isActive ? 'bg-muted' : 'hover:bg-muted/50',
                       )}
                     >
@@ -282,7 +285,7 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                       <div
                         key={i}
                         className={cn(
-                          'flex',
+                          'flex [content-visibility:auto] [contain-intrinsic-size:72px]',
                           msg.role === 'user' ? 'justify-start' : 'justify-end',
                         )}
                       >
@@ -327,6 +330,7 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                                     src={imageUrl}
                                     alt="Immagine inviata dal lead"
                                     className="max-h-72 w-full rounded-md object-cover"
+                                    decoding="async"
                                     loading="lazy"
                                   />
                                 </a>
