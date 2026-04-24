@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Check } from 'lucide-react'
 import type { BotConfig, TemplateTestRequest } from '@/shared/lib/types'
 import { Button } from '@/shared/ui/button'
@@ -21,10 +21,41 @@ export function SendTemplateCard({
   onSend,
   pending,
 }: SendTemplateCardProps) {
+  const resetKey = [
+    bot.id,
+    bot.default_template_name,
+    bot.template_language,
+    bot.default_template_variable_count,
+  ].join(':')
+
+  return (
+    <SendTemplateForm
+      key={resetKey}
+      bot={bot}
+      error={error}
+      notice={notice}
+      onSend={onSend}
+      pending={pending}
+    />
+  )
+}
+
+function SendTemplateForm({
+  bot,
+  error,
+  notice,
+  onSend,
+  pending,
+}: SendTemplateCardProps) {
   const [to, setTo] = useState('')
   const [templateName, setTemplateName] = useState(bot.default_template_name)
   const [languageCode, setLanguageCode] = useState(bot.template_language)
-  const [templateValues, setTemplateValues] = useState<string[]>([])
+  const [templateValues, setTemplateValues] = useState<string[]>(() =>
+    Array.from(
+      { length: Math.max(bot.default_template_variable_count ?? 0, 0) },
+      () => '',
+    ),
+  )
   const [bodyParametersRaw, setBodyParametersRaw] = useState('')
   const expectedBodyParameterCount = Math.max(bot.default_template_variable_count ?? 0, 0)
   const isDefaultTemplateSelected =
@@ -32,35 +63,26 @@ export function SendTemplateCard({
     templateName.trim() === bot.default_template_name.trim()
   const hasStructuredTemplateValues =
     isDefaultTemplateSelected && expectedBodyParameterCount > 0
-  const normalizedTemplateValues = templateValues.map((value) => value.trim())
+  const displayedTemplateValues = hasStructuredTemplateValues
+    ? Array.from(
+        { length: expectedBodyParameterCount },
+        (_, index) => templateValues[index] ?? '',
+      )
+    : templateValues
+  const normalizedTemplateValues = displayedTemplateValues.map((value) => value.trim())
   const hasMissingTemplateValue =
     hasStructuredTemplateValues &&
-    normalizedTemplateValues.length === expectedBodyParameterCount &&
     normalizedTemplateValues.some((value) => !value)
 
-  useEffect(() => {
-    setTemplateName(bot.default_template_name)
-    setLanguageCode(bot.template_language)
-    setTemplateValues(
-      Array.from(
-        { length: Math.max(bot.default_template_variable_count ?? 0, 0) },
-        () => '',
-      ),
-    )
-    setBodyParametersRaw('')
-  }, [bot.default_template_name, bot.template_language, bot.id])
-
-  useEffect(() => {
-    if (!isDefaultTemplateSelected) return
-    setTemplateValues((current) =>
-      Array.from({ length: expectedBodyParameterCount }, (_, index) => current[index] ?? ''),
-    )
-  }, [expectedBodyParameterCount, isDefaultTemplateSelected])
-
   function patchTemplateValue(index: number, value: string) {
-    setTemplateValues((current) =>
-      current.map((item, currentIndex) => (currentIndex === index ? value : item)),
-    )
+    setTemplateValues((current) => {
+      const next = Array.from(
+        { length: expectedBodyParameterCount },
+        (_, currentIndex) => current[currentIndex] ?? '',
+      )
+      next[index] = value
+      return next
+    })
   }
 
   async function submit() {
@@ -141,7 +163,7 @@ export function SendTemplateCard({
                 </p>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
-                {templateValues.map((value, index) => (
+                {displayedTemplateValues.map((value, index) => (
                   <div key={`${bot.id}-template-value-${index}`} className="grid gap-1.5">
                     <Label
                       htmlFor={`template-value-${index}`}

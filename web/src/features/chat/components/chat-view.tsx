@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Loader2, Trash2 } from 'lucide-react'
 import { GeloLogo } from '@/shared/ui/gelo-logo'
 
@@ -39,10 +39,15 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
   const [deletingWaId, setDeletingWaId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const selectedWaIdRef = useRef<string | null>(null)
 
-  async function reloadLeads(options?: { preserveSelection?: boolean }) {
+  useEffect(() => {
+    selectedWaIdRef.current = selectedWaId
+  }, [selectedWaId])
+
+  const reloadLeads = useCallback(async (options?: { preserveSelection?: boolean }) => {
     const preserveSelection = options?.preserveSelection ?? false
-    const currentSelectedWaId = selectedWaId
+    const currentSelectedWaId = selectedWaIdRef.current
     setIsLoadingLeads(true)
     setError('')
     try {
@@ -70,11 +75,11 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
     } finally {
       setIsLoadingLeads(false)
     }
-  }
+  }, [accessToken, bot.id])
 
   useEffect(() => {
     void reloadLeads()
-  }, [accessToken, bot.id])
+  }, [reloadLeads])
 
   useEffect(() => {
     if (!selectedWaId) return

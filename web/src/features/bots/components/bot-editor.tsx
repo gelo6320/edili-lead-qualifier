@@ -25,6 +25,8 @@ const DATE_TIME_FORMATTER = new Intl.DateTimeFormat('it-IT', {
   dateStyle: 'medium',
   timeStyle: 'short',
 })
+const EMPTY_PHONE_OPTIONS: MetaWabaOption['phone_numbers'] = []
+const EMPTY_TEMPLATE_OPTIONS: MetaWabaOption['templates'] = []
 
 type BotEditorProps = {
   bot: BotConfig
@@ -64,30 +66,35 @@ function formatDateTime(value: string): string {
 }
 
 function getSelectedWaba(
-  bot: BotConfig,
+  metaWabaId: string,
   metaAssets: MetaAssetsPayload,
 ): MetaWabaOption | null {
-  return metaAssets.waba_options.find((item) => item.id === bot.meta_waba_id) ?? null
+  return metaAssets.waba_options.find((item) => item.id === metaWabaId) ?? null
 }
 
-function matchTemplate(bot: BotConfig, templateOptions: MetaWabaOption['templates']) {
-  if (bot.default_template_id.trim()) {
-    const byId = templateOptions.find((item) => item.id === bot.default_template_id)
+function matchTemplate(
+  defaultTemplateId: string,
+  defaultTemplateName: string,
+  templateLanguage: string,
+  templateOptions: MetaWabaOption['templates'],
+) {
+  if (defaultTemplateId.trim()) {
+    const byId = templateOptions.find((item) => item.id === defaultTemplateId)
     if (byId) {
       return byId
     }
   }
 
-  const templateName = bot.default_template_name.trim()
+  const templateName = defaultTemplateName.trim()
   if (!templateName) {
     return null
   }
 
-  const templateLanguage = bot.template_language.trim().toLowerCase()
+  const normalizedTemplateLanguage = templateLanguage.trim().toLowerCase()
   const byNameAndLanguage = templateOptions.find(
     (item) =>
       item.name === templateName &&
-      item.language.trim().toLowerCase() === templateLanguage,
+      item.language.trim().toLowerCase() === normalizedTemplateLanguage,
   )
   if (byNameAndLanguage) {
     return byNameAndLanguage
@@ -162,13 +169,19 @@ export function BotEditor({
   onSave,
 }: BotEditorProps) {
   const selectedWaba = useMemo(
-    () => getSelectedWaba(bot, metaAssets),
+    () => getSelectedWaba(bot.meta_waba_id, metaAssets),
     [bot.meta_waba_id, metaAssets],
   )
-  const phoneOptions = selectedWaba?.phone_numbers ?? []
-  const templateOptions = selectedWaba?.templates ?? []
+  const phoneOptions = selectedWaba?.phone_numbers ?? EMPTY_PHONE_OPTIONS
+  const templateOptions = selectedWaba?.templates ?? EMPTY_TEMPLATE_OPTIONS
   const selectedTemplate = useMemo(
-    () => matchTemplate(bot, templateOptions),
+    () =>
+      matchTemplate(
+        bot.default_template_id,
+        bot.default_template_name,
+        bot.template_language,
+        templateOptions,
+      ),
     [
       bot.default_template_id,
       bot.default_template_name,
@@ -238,7 +251,12 @@ export function BotEditor({
 
     const nextPhone =
       nextWaba.phone_numbers.find((item) => item.id === bot.phone_number_id) ?? null
-    const nextTemplate = matchTemplate(bot, nextWaba.templates)
+    const nextTemplate = matchTemplate(
+      bot.default_template_id,
+      bot.default_template_name,
+      bot.template_language,
+      nextWaba.templates,
+    )
 
     patchMany({
       meta_business_id: nextWaba.business_id,
