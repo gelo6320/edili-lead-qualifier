@@ -10,6 +10,7 @@ import {
   Settings2,
   X,
 } from 'lucide-react'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { AuthView } from '@/features/auth/components/auth-view'
 import { BotEditor } from '@/features/bots/components/bot-editor'
@@ -32,7 +33,6 @@ import {
   startMetaOAuth,
   updateBot,
 } from '@/shared/lib/dashboard-api'
-import { getBrowserSupabaseClient } from '@/shared/lib/supabase-browser'
 import type {
   BotConfig,
   DashboardAppConfig,
@@ -87,9 +87,7 @@ function App() {
   const [isBooting, setIsBooting] = useState(true)
   const [appConfig, setAppConfig] = useState<DashboardAppConfig | null>(null)
 
-  const [supabase, setSupabase] = useState<ReturnType<
-    typeof getBrowserSupabaseClient
-  > | null>(null)
+  const [supabase, setSupabase] = useState<SupabaseClient | null>(null)
   const [accessToken, setAccessToken] = useState('')
 
   const [authEmail, setAuthEmail] = useState('')
@@ -193,6 +191,9 @@ function App() {
           return
         }
 
+        const { getBrowserSupabaseClient } = await import(
+          '@/shared/lib/supabase-browser'
+        )
         const client = getBrowserSupabaseClient(nextAppConfig)
         setSupabase(client)
 
