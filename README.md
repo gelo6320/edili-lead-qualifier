@@ -87,12 +87,6 @@ File esempio:
 `ANTHROPIC_MODEL`
 - consigliato: `claude-sonnet-4-6`
 
-### Sicurezza admin legacy
-
-`ADMIN_API_KEY`
-- bearer secret per l'endpoint legacy `/admin/whatsapp/template`
-- la dashboard non usa questa chiave; usa Supabase Auth
-
 ### Database
 
 `DATABASE_URL`
@@ -167,10 +161,7 @@ File esempio:
 - default: `https://graph.facebook.com`
 
 `WHATSAPP_GRAPH_VERSION`
-- verificato sui docs Meta il 3 aprile 2026: `v23.0`
-
-`WHATSAPP_ACCESS_TOKEN`
-- token permanente Meta del system user
+- default: `v25.0`
 
 `WHATSAPP_BUSINESS_ACCOUNT_ID`
 - WABA id
@@ -180,11 +171,9 @@ File esempio:
 
 ### Sicurezza webhook Meta
 
-`META_APP_SECRET`
-- App Secret della stessa app Meta che invia i webhook
-
 `META_ENFORCE_SIGNATURE`
 - produzione: `true`
+- valida `X-Hub-Signature-256` sui webhook in arrivo usando `META_APP_SECRET`
 
 ### GoHighLevel
 

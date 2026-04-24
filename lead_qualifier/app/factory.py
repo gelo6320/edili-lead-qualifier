@@ -7,7 +7,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from lead_qualifier.api.admin_router import build_admin_router
 from lead_qualifier.api.dashboard_router import build_dashboard_api_router
 from lead_qualifier.api.ghl_webhook_router import build_ghl_webhook_router
 from lead_qualifier.api.webhook_router import build_webhook_router
@@ -109,7 +108,6 @@ def create_app() -> FastAPI:
     )
     app.include_router(build_webhook_router(settings, message_service))
     app.include_router(build_ghl_webhook_router(ghl_bot_resolver, outbound_service))
-    app.include_router(build_admin_router(settings, outbound_service))
     app.include_router(
         build_dashboard_api_router(
             settings,

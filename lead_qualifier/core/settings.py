@@ -25,7 +25,6 @@ def _env_list(name: str) -> list[str]:
 class Settings:
     anthropic_api_key: str
     anthropic_model: str
-    admin_api_key: str
     app_base_url: str
     database_url: str
     database_schema: str
@@ -75,7 +74,6 @@ class Settings:
         return cls(
             anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", "").strip(),
             anthropic_model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6").strip() or "claude-sonnet-4-6",
-            admin_api_key=os.getenv("ADMIN_API_KEY", "").strip(),
             app_base_url=os.getenv("APP_BASE_URL", "").rstrip("/"),
             database_url=os.getenv("DATABASE_URL", "").strip(),
             database_schema=os.getenv("DATABASE_SCHEMA", "public").strip() or "public",
