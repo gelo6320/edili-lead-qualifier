@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Check } from 'lucide-react'
 import { FieldListEditor } from '@/features/bots/components/field-list-editor'
 import {
   commaSeparatedToList,
@@ -16,7 +17,9 @@ import { Label } from '@/shared/ui/label'
 import { Textarea } from '@/shared/ui/textarea'
 
 const SELECT_CLASS_NAME =
-  'h-11 w-full cursor-pointer rounded-xl border border-border/60 bg-background px-3 text-sm transition-colors hover:border-border focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60'
+  'h-9 w-full cursor-pointer appearance-none rounded-md border border-border bg-background px-2.5 pr-8 text-sm transition-colors hover:border-foreground/30 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60'
+
+const INPUT_CLASS_NAME = 'h-9 rounded-md'
 
 type BotEditorProps = {
   bot: BotConfig
@@ -91,6 +94,48 @@ function matchTemplate(bot: BotConfig, templateOptions: MetaWabaOption['template
   return templateOptions.find((item) => item.name === templateName) ?? null
 }
 
+type SectionProps = {
+  title: string
+  description?: string
+  action?: React.ReactNode
+  children: React.ReactNode
+}
+
+function Section({ title, description, action, children }: SectionProps) {
+  return (
+    <section className="rounded-md border border-border bg-card">
+      <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold leading-tight">{title}</h2>
+          {description ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+          ) : null}
+        </div>
+        {action ? <div className="flex-shrink-0">{action}</div> : null}
+      </header>
+      <div className="p-4">{children}</div>
+    </section>
+  )
+}
+
+type FieldProps = {
+  id: string
+  label: string
+  children: React.ReactNode
+  className?: string
+}
+
+function Field({ id, label, children, className }: FieldProps) {
+  return (
+    <div className={`grid gap-1.5 ${className ?? ''}`}>
+      <Label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+        {label}
+      </Label>
+      {children}
+    </div>
+  )
+}
+
 export function BotEditor({
   bot,
   cloudflareCrawlEnabled,
@@ -153,11 +198,7 @@ export function BotEditor({
     if (Object.keys(nextPatch).length > 0) {
       onChange({ ...bot, ...nextPatch })
     }
-  }, [
-    bot,
-    onChange,
-    selectedTemplate,
-  ])
+  }, [bot, onChange, selectedTemplate])
 
   function handleWabaChange(wabaId: string) {
     if (!wabaId) {
@@ -202,8 +243,7 @@ export function BotEditor({
   }
 
   function handlePhoneNumberChange(phoneNumberId: string) {
-    const nextPhone =
-      phoneOptions.find((item) => item.id === phoneNumberId) ?? null
+    const nextPhone = phoneOptions.find((item) => item.id === phoneNumberId) ?? null
     patchMany({
       phone_number_id: nextPhone?.id ?? '',
       whatsapp_display_phone_number: nextPhone?.display_phone_number ?? '',
@@ -211,8 +251,7 @@ export function BotEditor({
   }
 
   function handleTemplateChange(templateId: string) {
-    const nextTemplate =
-      templateOptions.find((item) => item.id === templateId) ?? null
+    const nextTemplate = templateOptions.find((item) => item.id === templateId) ?? null
     patchMany({
       default_template_id: nextTemplate?.id ?? '',
       default_template_name: nextTemplate?.name ?? '',
@@ -223,30 +262,27 @@ export function BotEditor({
   }
 
   return (
-    <div className="grid gap-6">
-      <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-3 shadow-sm md:flex-row md:items-center md:justify-between">
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           {editorNotice ? (
-            <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-medium text-primary">
-              <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
+            <div className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+              <Check className="h-3.5 w-3.5" />
               {editorNotice}
             </div>
           ) : null}
-
           {editorError ? (
-            <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            <div className="rounded-md bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
               {editorError}
             </div>
           ) : null}
         </div>
 
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {!isNew ? (
             <Button
               variant="destructive"
-              className="rounded-xl"
+              size="sm"
               onClick={onDelete}
               disabled={isDeleting}
               type="button"
@@ -254,266 +290,247 @@ export function BotEditor({
               {isDeleting ? 'Eliminazione...' : 'Elimina'}
             </Button>
           ) : null}
-
-          <Button
-            onClick={onSave}
-            disabled={isSaving}
-            className="rounded-xl shadow-sm shadow-primary/20"
-            type="button"
-          >
+          <Button onClick={onSave} disabled={isSaving} size="sm" type="button">
             {isSaving ? 'Salvataggio...' : 'Salva'}
           </Button>
         </div>
       </div>
 
-      <section className="grid gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="grid gap-1">
-            <h2 className="text-sm font-semibold">Connessione Meta e routing lead</h2>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={metaAssets.connected ? 'default' : 'outline'}>
-              {metaAssets.connected ? 'Facebook collegato' : 'Facebook non collegato'}
-            </Badge>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {metaOauthEnabled ? (
+      <Section
+        title="Connessione Meta"
+        description="Collega il WABA e il routing dei lead qualificati."
+        action={
+          <Badge variant={metaAssets.connected ? 'default' : 'outline'}>
+            {metaAssets.connected ? 'Collegato' : 'Non collegato'}
+          </Badge>
+        }
+      >
+        <div className="grid gap-4">
+          <div className="flex flex-wrap gap-2">
+            {metaOauthEnabled ? (
+              <Button
+                type="button"
+                variant={metaAssets.connected ? 'outline' : 'default'}
+                size="sm"
+                onClick={onConnectMeta}
+                disabled={isConnectingMeta}
+              >
+                {isConnectingMeta
+                  ? 'Reindirizzamento...'
+                  : metaAssets.connected
+                    ? 'Ricollega'
+                    : 'Collega Facebook'}
+              </Button>
+            ) : null}
             <Button
               type="button"
-              variant={metaAssets.connected ? 'outline' : 'default'}
-              className="rounded-xl"
-              onClick={onConnectMeta}
-              disabled={isConnectingMeta}
+              variant="outline"
+              size="sm"
+              onClick={onReloadMetaAssets}
+              disabled={isLoadingMetaAssets}
             >
-              {isConnectingMeta
-                ? 'Reindirizzamento...'
-                : metaAssets.connected
-                  ? 'Ricollega Facebook'
-                  : 'Collega Facebook'}
+              {isLoadingMetaAssets ? 'Aggiornamento...' : 'Ricarica asset'}
             </Button>
+          </div>
+
+          {!metaOauthEnabled ? (
+            <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              Configura <code className="font-mono">META_APP_ID</code>,{' '}
+              <code className="font-mono">META_APP_SECRET</code>,{' '}
+              <code className="font-mono">APP_BASE_URL</code>,{' '}
+              <code className="font-mono">OAUTH_STATE_SECRET</code> sul backend.
+            </p>
           ) : null}
 
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-xl"
-            onClick={onReloadMetaAssets}
-            disabled={isLoadingMetaAssets}
-          >
-            {isLoadingMetaAssets ? 'Aggiornamento...' : 'Ricarica asset'}
-          </Button>
-        </div>
+          {metaAssets.profile ? (
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">{metaAssets.profile.name}</span>{' '}
+              · {formatDateTime(metaAssets.profile.token_expires_at)}
+            </p>
+          ) : null}
 
-        {!metaOauthEnabled ? (
-            <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-700">
-            Per usare l'OAuth Meta devi configurare `META_APP_ID`, `META_APP_SECRET`, `APP_BASE_URL` e `OAUTH_STATE_SECRET` sul backend.
-            </div>
-        ) : null}
+          {metaAssetsError ? (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {metaAssetsError}
+            </p>
+          ) : null}
 
-        {metaAssets.profile ? (
-          <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-            <span className="font-semibold text-foreground">{metaAssets.profile.name}</span>
-            {' '}· {formatDateTime(metaAssets.profile.token_expires_at)}
-          </div>
-        ) : null}
-
-        {metaAssetsError ? (
-          <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-            {metaAssetsError}
-          </div>
-        ) : null}
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div className="grid gap-2">
-            <Label htmlFor="meta-waba" className="text-sm font-semibold">Account WhatsApp Business</Label>
-            <select
-              id="meta-waba"
-              className={SELECT_CLASS_NAME}
-              value={bot.meta_waba_id}
-              onChange={(event) => handleWabaChange(event.target.value)}
-              disabled={!metaAssets.waba_options.length}
-            >
-              <option value="">
-                {metaAssets.waba_options.length ? 'Seleziona WABA' : 'Nessun WABA'}
-              </option>
-              {metaAssets.waba_options.map((waba) => (
-                <option key={waba.id} value={waba.id}>
-                  {waba.name} - {waba.business_name}
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <Field id="meta-waba" label="Account WhatsApp Business">
+              <select
+                id="meta-waba"
+                className={SELECT_CLASS_NAME}
+                value={bot.meta_waba_id}
+                onChange={(event) => handleWabaChange(event.target.value)}
+                disabled={!metaAssets.waba_options.length}
+              >
+                <option value="">
+                  {metaAssets.waba_options.length ? 'Seleziona WABA' : 'Nessun WABA'}
                 </option>
-              ))}
-            </select>
-          </div>
+                {metaAssets.waba_options.map((waba) => (
+                  <option key={waba.id} value={waba.id}>
+                    {waba.name} · {waba.business_name}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
-          <div className="grid gap-2">
-            <Label htmlFor="meta-phone-number" className="text-sm font-semibold">Numero invio WhatsApp</Label>
-            <select
-              id="meta-phone-number"
-              className={SELECT_CLASS_NAME}
-              value={bot.phone_number_id}
-              onChange={(event) => handlePhoneNumberChange(event.target.value)}
-              disabled={!selectedWaba}
-            >
-              <option value="">
-                {selectedWaba ? 'Seleziona numero' : 'Seleziona WABA'}
-              </option>
-              {phoneOptions.map((phone) => (
-                <option key={phone.id} value={phone.id}>
-                  {phone.display_phone_number || phone.id}
-                  {phone.verified_name ? ` - ${phone.verified_name}` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+            <Field id="meta-phone-number" label="Numero invio WhatsApp">
+              <select
+                id="meta-phone-number"
+                className={SELECT_CLASS_NAME}
+                value={bot.phone_number_id}
+                onChange={(event) => handlePhoneNumberChange(event.target.value)}
+                disabled={!selectedWaba}
+              >
+                <option value="">{selectedWaba ? 'Seleziona numero' : 'Seleziona WABA'}</option>
+                {phoneOptions.map((phone) => (
+                  <option key={phone.id} value={phone.id}>
+                    {phone.display_phone_number || phone.id}
+                    {phone.verified_name ? ` · ${phone.verified_name}` : ''}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
-          <div className="grid gap-2">
-            <Label htmlFor="meta-template" className="text-sm font-semibold">Template iniziale</Label>
-            <select
-              id="meta-template"
-              className={SELECT_CLASS_NAME}
-              value={selectedTemplate?.id ?? bot.default_template_id}
-              onChange={(event) => handleTemplateChange(event.target.value)}
-              disabled={!selectedWaba}
-            >
-              <option value="">
-                {selectedWaba ? 'Seleziona template' : 'Seleziona WABA'}
-              </option>
-              {templateOptions.map((template) => (
-                <option key={template.id || `${template.name}-${template.language}`} value={template.id}>
-                  {template.name} - {template.language}
-                </option>
-              ))}
-            </select>
-          </div>
+            <Field id="meta-template" label="Template iniziale">
+              <select
+                id="meta-template"
+                className={SELECT_CLASS_NAME}
+                value={selectedTemplate?.id ?? bot.default_template_id}
+                onChange={(event) => handleTemplateChange(event.target.value)}
+                disabled={!selectedWaba}
+              >
+                <option value="">{selectedWaba ? 'Seleziona template' : 'Seleziona WABA'}</option>
+                {templateOptions.map((template) => (
+                  <option
+                    key={template.id || `${template.name}-${template.language}`}
+                    value={template.id}
+                  >
+                    {template.name} · {template.language}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
-          <div className="grid gap-2">
-            <Label htmlFor="ghl-location-id" className="text-sm font-semibold">GHL location ID</Label>
-            <Input
-              id="ghl-location-id"
-              className="h-11 rounded-xl"
-              value={bot.ghl_location_id}
-              onChange={(event) => patch('ghl_location_id', event.target.value)}
-              placeholder="es. abc123location"
-            />
-          </div>
+            <Field id="ghl-location-id" label="GHL location ID">
+              <Input
+                id="ghl-location-id"
+                className={INPUT_CLASS_NAME}
+                value={bot.ghl_location_id}
+                onChange={(event) => patch('ghl_location_id', event.target.value)}
+                placeholder="es. abc123location"
+              />
+            </Field>
 
-          <div className="grid gap-2">
-            <Label htmlFor="qualified-lead-webhook-url" className="text-sm font-semibold">
-              Webhook lead qualificato
-            </Label>
-            <Input
+            <Field
               id="qualified-lead-webhook-url"
-              className="h-11 rounded-xl"
-              value={bot.qualified_lead_webhook_url}
-              onChange={(event) => patch('qualified_lead_webhook_url', event.target.value)}
-              placeholder="https://services.leadconnectorhq.com/workflows/... oppure URL webhook inbound GHL"
-            />
+              label="Webhook lead qualificato"
+              className="md:col-span-2"
+            >
+              <Input
+                id="qualified-lead-webhook-url"
+                className={INPUT_CLASS_NAME}
+                value={bot.qualified_lead_webhook_url}
+                onChange={(event) => patch('qualified_lead_webhook_url', event.target.value)}
+                placeholder="https://services.leadconnectorhq.com/..."
+              />
+            </Field>
           </div>
+
+          {selectedTemplateBody ? (
+            <div className="rounded-md bg-muted/50 px-3 py-2.5 text-xs">
+              <div className="mb-1 font-medium">Contenuto template</div>
+              <p className="whitespace-pre-wrap text-muted-foreground">{selectedTemplateBody}</p>
+            </div>
+          ) : null}
         </div>
+      </Section>
 
-        {selectedTemplateBody ? (
-          <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-            <div className="font-semibold text-foreground">Contenuto template nel contesto agente</div>
-            <p className="mt-2 whitespace-pre-wrap">{selectedTemplateBody}</p>
-          </div>
-        ) : null}
-      </section>
-
-      <section className="grid gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
-        <h2 className="text-sm font-semibold">Identità bot</h2>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <div className="grid gap-2">
-            <Label htmlFor="bot-id" className="text-xs text-muted-foreground">ID bot</Label>
+      <Section title="Identità bot">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <Field id="bot-id" label="ID bot">
             <Input
               id="bot-id"
-              className="h-11 rounded-xl"
+              className={INPUT_CLASS_NAME}
               value={bot.id}
               disabled={!isNew}
               onChange={(event) => patch('id', event.target.value)}
             />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="bot-name" className="text-xs text-muted-foreground">Nome bot</Label>
+          </Field>
+          <Field id="bot-name" label="Nome bot">
             <Input
               id="bot-name"
-              className="h-11 rounded-xl"
+              className={INPUT_CLASS_NAME}
               value={bot.name}
               onChange={(event) => patch('name', event.target.value)}
             />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="agent-name" className="text-xs text-muted-foreground">Nome agente</Label>
+          </Field>
+          <Field id="agent-name" label="Nome agente">
             <Input
               id="agent-name"
-              className="h-11 rounded-xl"
+              className={INPUT_CLASS_NAME}
               value={bot.agent_name}
               onChange={(event) => patch('agent_name', event.target.value)}
             />
-          </div>
+          </Field>
         </div>
-      </section>
+      </Section>
 
-      <section className="grid gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
-        <h2 className="text-sm font-semibold">Azienda</h2>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <div className="grid gap-2">
-            <Label htmlFor="company-name" className="text-xs text-muted-foreground">Nome azienda</Label>
+      <Section title="Azienda">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <Field id="company-name" label="Nome azienda">
             <Input
               id="company-name"
-              className="h-11 rounded-xl"
+              className={INPUT_CLASS_NAME}
               value={bot.company_name}
               onChange={(event) => patch('company_name', event.target.value)}
             />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="company-service-area" className="text-xs text-muted-foreground">Area di servizio</Label>
+          </Field>
+          <Field id="company-service-area" label="Area di servizio">
             <Input
               id="company-service-area"
-              className="h-11 rounded-xl"
+              className={INPUT_CLASS_NAME}
               value={bot.service_area}
               onChange={(event) => patch('service_area', event.target.value)}
             />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="company-services" className="text-xs text-muted-foreground">Servizi principali</Label>
+          </Field>
+          <Field id="company-services" label="Servizi principali">
             <Input
               id="company-services"
-              className="h-11 rounded-xl"
+              className={INPUT_CLASS_NAME}
               placeholder="Ristrutturazioni, Facciate, Tetti"
               value={listToCommaSeparated(bot.company_services)}
               onChange={(event) =>
                 patch('company_services', commaSeparatedToList(event.target.value))
               }
             />
-          </div>
-
-          <div className="grid gap-2 sm:col-span-2 xl:col-span-3">
-            <Label htmlFor="company-description" className="text-xs text-muted-foreground">Descrizione azienda</Label>
+          </Field>
+          <Field
+            id="company-description"
+            label="Descrizione azienda"
+            className="sm:col-span-2 xl:col-span-3"
+          >
             <Textarea
               id="company-description"
-              className="min-h-28 rounded-xl"
+              className="min-h-24 rounded-md"
               value={bot.company_description}
               onChange={(event) => patch('company_description', event.target.value)}
             />
-          </div>
+          </Field>
         </div>
-      </section>
+      </Section>
 
-      <section className="grid gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
-        <h2 className="text-sm font-semibold">Sito web e knowledge base</h2>
-        <div className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="website-url" className="text-xs text-muted-foreground">Sito aziendale</Label>
-            <div className="flex flex-col gap-3 lg:flex-row">
+      <Section
+        title="Sito web e knowledge base"
+        description="Crawla le pagine del sito per alimentare il contesto dell'agente."
+      >
+        <div className="grid gap-3">
+          <Field id="website-url" label="Sito aziendale">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 id="website-url"
-                className="h-11 rounded-xl"
+                className={INPUT_CLASS_NAME}
                 placeholder="https://www.example.com"
                 value={bot.website_url}
                 onChange={(event) => patch('website_url', event.target.value)}
@@ -521,7 +538,8 @@ export function BotEditor({
               <Button
                 type="button"
                 variant="outline"
-                className="gap-2 rounded-xl lg:min-w-[12rem]"
+                size="sm"
+                className="h-9 sm:min-w-[10rem]"
                 onClick={() => onCrawlSite(bot.website_url)}
                 disabled={
                   !cloudflareCrawlEnabled ||
@@ -530,71 +548,52 @@ export function BotEditor({
                   !bot.website_url.trim()
                 }
               >
-                {isCrawlingSite ? 'Analisi in corso...' : 'Crawl + knowledge'}
+                {isCrawlingSite ? 'Analisi...' : 'Crawl + knowledge'}
               </Button>
             </div>
-          </div>
+          </Field>
 
-          {(!cloudflareCrawlEnabled || isNew || crawlNotice || crawlError) ? (
-            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-              {!cloudflareCrawlEnabled ? (
-                <p className="text-amber-700">Configura Cloudflare.</p>
-              ) : null}
-              {isNew ? (
-                <p>Salva prima.</p>
-              ) : null}
-              {crawlNotice ? (
-                <p className="text-primary">{crawlNotice}</p>
-              ) : null}
-              {crawlError ? (
-                <p className="text-destructive">{crawlError}</p>
-              ) : null}
-            </div>
+          {!cloudflareCrawlEnabled ? (
+            <p className="text-xs text-amber-700 dark:text-amber-400">Configura Cloudflare.</p>
           ) : null}
+          {isNew ? <p className="text-xs text-muted-foreground">Salva prima.</p> : null}
+          {crawlNotice ? <p className="text-xs text-primary">{crawlNotice}</p> : null}
+          {crawlError ? <p className="text-xs text-destructive">{crawlError}</p> : null}
         </div>
-      </section>
+      </Section>
 
-      <section className="grid gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
-        <h2 className="text-sm font-semibold">Qualificazione e prenotazione</h2>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <div className="grid gap-2">
-            <Label htmlFor="qualification-statuses" className="text-xs text-muted-foreground">Stati qualificazione</Label>
+      <Section title="Qualificazione e prenotazione">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <Field id="qualification-statuses" label="Stati qualificazione">
             <Input
               id="qualification-statuses"
-              className="h-11 rounded-xl"
+              className={INPUT_CLASS_NAME}
               placeholder="caldo, tiepido, freddo"
               value={listToCommaSeparated(bot.qualification_statuses)}
               onChange={(event) =>
-                patch(
-                  'qualification_statuses',
-                  commaSeparatedToList(event.target.value),
-                )
+                patch('qualification_statuses', commaSeparatedToList(event.target.value))
               }
             />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="booking-url" className="text-xs text-muted-foreground">Booking URL</Label>
+          </Field>
+          <Field id="booking-url" label="Booking URL">
             <Input
               id="booking-url"
-              className="h-11 rounded-xl"
+              className={INPUT_CLASS_NAME}
               value={bot.booking_url}
               onChange={(event) => patch('booking_url', event.target.value)}
             />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="template-language-readonly" className="text-xs text-muted-foreground">Lingua template attiva</Label>
+          </Field>
+          <Field id="template-language-readonly" label="Lingua template attiva">
             <Input
               id="template-language-readonly"
-              className="h-11 rounded-xl"
+              className={INPUT_CLASS_NAME}
               value={bot.template_language}
               onChange={(event) => patch('template_language', event.target.value)}
               readOnly
             />
-          </div>
+          </Field>
         </div>
-      </section>
+      </Section>
 
       <FieldListEditor bot={bot} onChange={onChange} />
     </div>

@@ -42,12 +42,6 @@ import type {
 } from '@/shared/lib/types'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/shared/ui/card'
 import { GeloLogo } from '@/shared/ui/gelo-logo'
 
 type Section = 'config' | 'template' | 'chat'
@@ -589,14 +583,10 @@ function App() {
   if (isBooting) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
-        <Card className="w-full max-w-sm border-border/60 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-3">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              Caricamento...
-            </CardTitle>
-          </CardHeader>
-        </Card>
+        <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          Caricamento
+        </div>
       </div>
     )
   }
@@ -604,12 +594,10 @@ function App() {
   if (configError) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
-        <Card className="w-full max-w-xl border-border/60 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-destructive">Config mancante</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">{configError}</CardContent>
-        </Card>
+        <div className="w-full max-w-md rounded-md border border-border bg-card p-4">
+          <div className="text-sm font-semibold text-destructive">Config mancante</div>
+          <p className="mt-1 text-sm text-muted-foreground">{configError}</p>
+        </div>
       </div>
     )
   }
@@ -630,25 +618,16 @@ function App() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
-      <header className="flex h-14 flex-shrink-0 items-center gap-2 border-b border-border/60 bg-card/90 px-3 backdrop-blur lg:px-4">
-        <div className="flex items-center gap-2">
-          <GeloLogo className="h-7 w-7" />
-
+      <header className="flex h-12 flex-shrink-0 items-center gap-2 border-b border-border bg-card px-3 lg:px-4">
+        <div className="flex items-center gap-1">
+          <GeloLogo className="h-6 w-6" />
           <Button
             variant="ghost"
             size="icon-sm"
-            className="hidden text-xs font-bold lg:flex"
+            className="hidden lg:flex"
             onClick={() => setIsSidebarCollapsed((current) => !current)}
-            aria-label={
-              isSidebarCollapsed
-                ? 'Espandi sidebar'
-                : 'Comprimi sidebar'
-            }
-            title={
-              isSidebarCollapsed
-                ? 'Espandi sidebar'
-                : 'Comprimi sidebar'
-            }
+            aria-label={isSidebarCollapsed ? 'Espandi sidebar' : 'Comprimi sidebar'}
+            title={isSidebarCollapsed ? 'Espandi sidebar' : 'Comprimi sidebar'}
           >
             {isSidebarCollapsed ? (
               <ChevronsRight className="h-4 w-4" />
@@ -658,9 +637,9 @@ function App() {
           </Button>
         </div>
 
-        <div className="relative min-w-0 flex-1 lg:max-w-sm">
+        <div className="relative min-w-0 flex-1 lg:max-w-xs">
           <select
-            className="h-9 w-full cursor-pointer appearance-none rounded-lg border border-border/60 bg-background py-0 pr-8 pl-3 text-sm font-medium transition-colors hover:border-border focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
+            className="h-8 w-full cursor-pointer appearance-none rounded-md border border-border bg-background py-0 pr-7 pl-2.5 text-sm transition-colors hover:border-foreground/30 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
             value={selectedBotId ?? ''}
             onChange={(event) => {
               if (event.target.value) {
@@ -677,10 +656,10 @@ function App() {
               </option>
             ))}
           </select>
-          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{'\u25BE'}</span>
+          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{'\u25BE'}</span>
         </div>
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-1">
           {isLoadingDashboard ? (
             <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           ) : null}
@@ -703,17 +682,12 @@ function App() {
             aria-label={mobileNavOpen ? 'Chiudi navigazione' : 'Apri navigazione'}
             title={mobileNavOpen ? 'Chiudi navigazione' : 'Apri navigazione'}
           >
-            {mobileNavOpen ? (
-              <X className="h-4 w-4" />
-            ) : (
-              <Menu className="h-4 w-4" />
-            )}
+            {mobileNavOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </Button>
 
           <Button
             variant="ghost"
             size="sm"
-            className="text-xs"
             onClick={handleSignOut}
             aria-label="Esci"
             title="Esci"
@@ -732,14 +706,12 @@ function App() {
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
         <aside
           className={cn(
-            'absolute inset-y-0 left-0 z-30 flex h-full w-64 flex-col border-r border-border/60 bg-card/95 backdrop-blur transition-[width,transform] duration-200 lg:relative lg:inset-auto lg:z-auto lg:h-auto lg:bg-card',
-            mobileNavOpen
-              ? 'translate-x-0 shadow-xl lg:shadow-none'
-              : '-translate-x-full lg:translate-x-0',
-            isSidebarCollapsed ? 'lg:w-[4.5rem]' : 'lg:w-60',
+            'absolute inset-y-0 left-0 z-30 flex h-full w-60 flex-col border-r border-border bg-card transition-transform duration-150 lg:relative lg:inset-auto lg:z-auto lg:h-auto',
+            mobileNavOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+            isSidebarCollapsed ? 'lg:w-14' : 'lg:w-52',
           )}
         >
-          <nav className="flex-1 p-2">
+          <nav className="flex-1 p-1.5">
             {NAV_ITEMS.map((item) => {
               const isActive = activeSection === item.id
               const Icon = item.icon
@@ -748,11 +720,11 @@ function App() {
                   key={item.id}
                   type="button"
                   className={cn(
-                    'flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    'flex w-full items-center rounded-md px-2.5 py-2 text-sm transition-colors',
                     isSidebarCollapsed ? 'justify-center px-2' : 'gap-2.5',
                     isActive
-                      ? 'bg-primary/[0.08] text-primary'
-                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                      ? 'bg-muted font-medium text-foreground'
+                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
                   )}
                   onClick={() => {
                     setActiveSection(item.id)
@@ -762,9 +734,7 @@ function App() {
                   title={item.label}
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />
-                  {!isSidebarCollapsed ? (
-                    <span className="truncate">{item.label}</span>
-                  ) : null}
+                  {!isSidebarCollapsed ? <span className="truncate">{item.label}</span> : null}
                 </button>
               )
             })}
@@ -773,57 +743,59 @@ function App() {
 
         {mobileNavOpen ? (
           <div
-            className="fixed inset-0 z-20 bg-black/20 lg:hidden"
+            className="fixed inset-0 z-20 bg-black/30 lg:hidden"
             onClick={() => setMobileNavOpen(false)}
           />
         ) : null}
 
-        <main className="min-w-0 flex-1 overflow-y-auto p-3 lg:p-4">
-          {activeSection === 'config' ? (
-            <BotEditor
-              bot={draftBot}
-              cloudflareCrawlEnabled={Boolean(appConfig?.cloudflare_crawl_enabled)}
-              crawlError={crawlError}
-              crawlNotice={crawlNotice}
-              editorError={editorError}
-              editorNotice={editorNotice}
-              isConnectingMeta={isConnectingMeta}
-              isCrawlingSite={isCrawlingSite}
-              isDeleting={isDeletingBot}
-              isLoadingMetaAssets={isLoadingMetaAssets}
-              isNew={draftMode === 'new'}
-              isSaving={isSavingBot}
-              metaAssets={metaAssets}
-              metaAssetsError={metaAssetsError}
-              metaOauthEnabled={Boolean(appConfig?.meta_oauth_enabled)}
-              onChange={setDraftBot}
-              onConnectMeta={handleConnectMeta}
-              onCrawlSite={handleCrawlSite}
-              onDelete={handleDeleteBot}
-              onReloadMetaAssets={refreshMetaAssets}
-              onSave={handleSaveBot}
-            />
-          ) : null}
+        <main className="thin-scrollbar min-w-0 flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-6xl p-4 lg:p-5">
+            {activeSection === 'config' ? (
+              <BotEditor
+                bot={draftBot}
+                cloudflareCrawlEnabled={Boolean(appConfig?.cloudflare_crawl_enabled)}
+                crawlError={crawlError}
+                crawlNotice={crawlNotice}
+                editorError={editorError}
+                editorNotice={editorNotice}
+                isConnectingMeta={isConnectingMeta}
+                isCrawlingSite={isCrawlingSite}
+                isDeleting={isDeletingBot}
+                isLoadingMetaAssets={isLoadingMetaAssets}
+                isNew={draftMode === 'new'}
+                isSaving={isSavingBot}
+                metaAssets={metaAssets}
+                metaAssetsError={metaAssetsError}
+                metaOauthEnabled={Boolean(appConfig?.meta_oauth_enabled)}
+                onChange={setDraftBot}
+                onConnectMeta={handleConnectMeta}
+                onCrawlSite={handleCrawlSite}
+                onDelete={handleDeleteBot}
+                onReloadMetaAssets={refreshMetaAssets}
+                onSave={handleSaveBot}
+              />
+            ) : null}
 
-          {activeSection === 'template' ? (
-            <SendTemplateCard
-              bot={draftBot}
-              error={templateError}
-              notice={templateNotice}
-              onSend={handleSendTemplate}
-              pending={isSendingTemplate}
-            />
-          ) : null}
+            {activeSection === 'template' ? (
+              <SendTemplateCard
+                bot={draftBot}
+                error={templateError}
+                notice={templateNotice}
+                onSend={handleSendTemplate}
+                pending={isSendingTemplate}
+              />
+            ) : null}
 
-          {activeSection === 'chat' ? (
-            draftMode === 'existing' ? (
-              <ChatView bot={draftBot} accessToken={accessToken} />
-            ) : (
-              <div className="flex min-h-[24rem] items-center justify-center rounded-xl border border-border/60 bg-card px-6 text-sm font-medium text-muted-foreground shadow-sm">
-                Salva prima
-              </div>
-            )
-          ) : null}
+            {activeSection === 'chat' ? (
+              draftMode === 'existing' ? (
+                <ChatView bot={draftBot} accessToken={accessToken} />
+              ) : (
+                <div className="flex min-h-[24rem] items-center justify-center rounded-md border border-border bg-card text-sm text-muted-foreground">
+                  Salva prima
+                </div>
+              )
+            ) : null}
+          </div>
         </main>
       </div>
     </div>

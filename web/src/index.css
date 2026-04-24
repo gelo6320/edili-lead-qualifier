@@ -53,30 +53,30 @@
 }
 
 :root {
-    --background: oklch(0.97 0.005 220);
-    --foreground: oklch(0.15 0.01 250);
+    --background: oklch(0.985 0.003 220);
+    --foreground: oklch(0.18 0.01 250);
     --card: oklch(1 0 0);
-    --card-foreground: oklch(0.15 0.01 250);
+    --card-foreground: oklch(0.18 0.01 250);
     --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.15 0.01 250);
+    --popover-foreground: oklch(0.18 0.01 250);
     --primary: oklch(0.55 0.22 255);
     --primary-foreground: oklch(1 0 0);
-    --secondary: oklch(0.96 0.008 220);
+    --secondary: oklch(0.965 0.005 220);
     --secondary-foreground: oklch(0.25 0.01 250);
-    --muted: oklch(0.95 0.006 220);
-    --muted-foreground: oklch(0.50 0.01 250);
+    --muted: oklch(0.96 0.004 220);
+    --muted-foreground: oklch(0.52 0.01 250);
     --accent: oklch(0.95 0.02 255);
     --accent-foreground: oklch(0.25 0.01 250);
     --destructive: oklch(0.58 0.22 28);
-    --border: oklch(0.91 0.006 220);
-    --input: oklch(0.91 0.006 220);
+    --border: oklch(0.92 0.005 220);
+    --input: oklch(0.92 0.005 220);
     --ring: oklch(0.55 0.22 255);
     --chart-1: oklch(0.55 0.22 255);
     --chart-2: oklch(0.65 0.15 255);
     --chart-3: oklch(0.45 0.18 255);
     --chart-4: oklch(0.75 0.10 255);
     --chart-5: oklch(0.35 0.15 255);
-    --radius: 0.75rem;
+    --radius: 0.5rem;
     --sidebar: oklch(0.98 0.004 220);
     --sidebar-foreground: oklch(0.15 0.01 250);
     --sidebar-primary: oklch(0.55 0.22 255);
@@ -127,7 +127,6 @@
   }
   html {
     @apply font-sans antialiased;
-    scroll-behavior: smooth;
   }
   body {
     @apply min-h-screen bg-background text-foreground;
@@ -137,5 +136,23 @@
   }
   ::selection {
     background: color-mix(in srgb, var(--primary) 22%, transparent);
+  }
+}
+
+@layer utilities {
+  .thin-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--foreground) 15%, transparent) transparent;
+  }
+  .thin-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .thin-scrollbar::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--foreground) 15%, transparent);
+    border-radius: 4px;
+  }
+  .thin-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
   }
 }

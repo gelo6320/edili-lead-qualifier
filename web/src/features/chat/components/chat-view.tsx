@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Loader2, Trash2 } from 'lucide-react'
 import { GeloLogo } from '@/shared/ui/gelo-logo'
 
 import {
@@ -11,10 +12,10 @@ import type { BotConfig, ChatMessage, LeadSummary } from '@/shared/lib/types'
 import { Button } from '@/shared/ui/button'
 
 const STATUS_COLORS: Record<string, string> = {
-  new: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  in_progress: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
-  qualified: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  follow_up: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+  new: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
+  in_progress: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+  qualified: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+  follow_up: 'bg-orange-500/10 text-orange-700 dark:text-orange-400',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -90,7 +91,9 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
       }
     }
     void load()
-    return () => { active = false }
+    return () => {
+      active = false
+    }
   }, [accessToken, bot.id, selectedWaId])
 
   useEffect(() => {
@@ -125,84 +128,87 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
   return (
     <div className="grid gap-3">
       {error ? (
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-md bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
           {error}
         </div>
       ) : null}
 
-      <div className="flex h-[calc(100vh-5.8rem)] min-h-[32rem] overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
+      <div className="flex h-[calc(100vh-7.5rem)] min-h-[28rem] overflow-hidden rounded-md border border-border bg-card">
         <div
           className={cn(
-            'flex w-full flex-col border-r border-border/60 md:w-80 md:flex-shrink-0',
+            'flex w-full flex-col border-r border-border md:w-72 md:flex-shrink-0',
             selectedWaId ? 'hidden md:flex' : 'flex',
           )}
         >
-          <div className="flex-1 overflow-y-auto">
+          <div className="thin-scrollbar flex-1 overflow-y-auto">
             {isLoadingLeads ? (
-              <div className="flex items-center gap-3 p-4 text-sm text-muted-foreground">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                Caricamento...
+              <div className="flex items-center gap-2 p-3 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                Caricamento
               </div>
             ) : leads.length === 0 ? (
-              <div className="flex h-full items-center justify-center p-8 text-sm font-medium text-muted-foreground">
+              <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">
                 Nessuna conversazione
               </div>
             ) : (
-              <div>
+              <ul className="divide-y divide-border">
                 {leads.map((lead) => {
                   const isActive = lead.wa_id === selectedWaId
-                  const statusColor = STATUS_COLORS[lead.qualification_status] ?? 'bg-muted text-muted-foreground'
-                  const statusLabel = STATUS_LABELS[lead.qualification_status] ?? lead.qualification_status
+                  const statusColor =
+                    STATUS_COLORS[lead.qualification_status] ?? 'bg-muted text-muted-foreground'
+                  const statusLabel =
+                    STATUS_LABELS[lead.qualification_status] ?? lead.qualification_status
 
                   return (
-                    <div
+                    <li
                       key={lead.wa_id}
                       className={cn(
-                        'flex items-center gap-2 border-b border-border/40 px-2 py-2',
-                        isActive ? 'bg-primary/[0.06]' : 'hover:bg-muted/40',
+                        'group/lead flex items-center gap-1',
+                        isActive ? 'bg-muted' : 'hover:bg-muted/50',
                       )}
                     >
                       <button
                         type="button"
-                        className="min-w-0 flex-1 px-2 py-1 text-left"
+                        className="min-w-0 flex-1 px-3 py-2 text-left"
                         onClick={() => setSelectedWaId(lead.wa_id)}
                       >
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
-                          U
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate text-sm font-medium">+{lead.wa_id}</span>
+                          <span
+                            className={cn(
+                              'flex-shrink-0 rounded-sm px-1.5 py-0.5 text-[10px] font-medium',
+                              statusColor,
+                            )}
+                          >
+                            {statusLabel}
+                          </span>
+                          <span className="ml-auto flex-shrink-0 text-[11px] text-muted-foreground">
+                            {lead.message_count}
+                          </span>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="truncate text-sm font-semibold">+{lead.wa_id}</span>
-                            <span className={cn('flex-shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium', statusColor)}>
-                              {statusLabel}
-                            </span>
-                          </div>
-                          {lead.summary ? (
-                            <p className="mt-0.5 truncate text-xs text-muted-foreground">{lead.summary}</p>
-                          ) : null}
-                        </div>
-                        <span className="flex-shrink-0 text-[10px] text-muted-foreground">
-                          {lead.message_count}
-                        </span>
-                      </div>
+                        {lead.summary ? (
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                            {lead.summary}
+                          </p>
+                        ) : null}
                       </button>
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon-sm"
-                        className="h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-destructive"
+                        className="mr-1 flex-shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover/lead:opacity-100 aria-[busy=true]:opacity-100"
+                        aria-busy={deletingWaId === lead.wa_id}
                         disabled={deletingWaId === lead.wa_id}
                         onClick={() => void handleDeleteConversation(lead.wa_id)}
-                        title="Clean chat"
-                        aria-label={`Clean chat +${lead.wa_id}`}
+                        title="Elimina chat"
+                        aria-label={`Elimina chat +${lead.wa_id}`}
                       >
-                        ✕
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
-                    </div>
+                    </li>
                   )
                 })}
-              </div>
+              </ul>
             )}
           </div>
         </div>
@@ -214,57 +220,64 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
           )}
         >
           {!selectedWaId ? (
-            <div className="flex flex-1 items-center justify-center text-sm font-medium text-muted-foreground">
-              Apri una chat
+            <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+              Seleziona una conversazione
             </div>
           ) : (
             <>
-              <div className="flex h-12 flex-shrink-0 items-center gap-3 border-b border-border/60 px-4">
+              <div className="flex h-11 flex-shrink-0 items-center gap-2 border-b border-border px-3">
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 md:hidden"
+                  size="icon-sm"
+                  className="md:hidden"
                   onClick={() => setSelectedWaId(null)}
+                  aria-label="Indietro"
                 >
-                  ←
+                  <ArrowLeft className="h-4 w-4" />
                 </Button>
-                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                  U
-                </div>
-                <div className="min-w-0 flex-1 truncate text-sm font-semibold">
+                <div className="min-w-0 flex-1 truncate text-sm font-medium">
                   +{selectedWaId}
                 </div>
                 {selectedLead ? (
-                  <span className={cn('flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium', STATUS_COLORS[selectedLead.qualification_status] ?? 'bg-muted text-muted-foreground')}>
-                    {STATUS_LABELS[selectedLead.qualification_status] ?? selectedLead.qualification_status}
+                  <span
+                    className={cn(
+                      'flex-shrink-0 rounded-sm px-1.5 py-0.5 text-[10px] font-medium',
+                      STATUS_COLORS[selectedLead.qualification_status] ??
+                        'bg-muted text-muted-foreground',
+                    )}
+                  >
+                    {STATUS_LABELS[selectedLead.qualification_status] ??
+                      selectedLead.qualification_status}
                   </span>
                 ) : null}
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                  className="text-muted-foreground hover:text-destructive"
                   disabled={!selectedWaId || deletingWaId === selectedWaId}
-                  onClick={() => selectedWaId ? void handleDeleteConversation(selectedWaId) : undefined}
-                  title="Clean chat"
-                  aria-label="Clean chat"
+                  onClick={() =>
+                    selectedWaId ? void handleDeleteConversation(selectedWaId) : undefined
+                  }
+                  title="Elimina chat"
+                  aria-label="Elimina chat"
                 >
-                  ✕
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
 
-              <div className="flex-1 overflow-y-auto bg-muted/20 px-4 py-4 lg:px-6">
+              <div className="thin-scrollbar flex-1 overflow-y-auto bg-muted/30 px-4 py-4">
                 {isLoadingMessages ? (
-                  <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                    <span className="ml-2">Caricamento...</span>
+                  <div className="flex items-center justify-center py-10 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                    <span className="ml-2">Caricamento</span>
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="py-12 text-center text-sm text-muted-foreground">
+                  <div className="py-10 text-center text-sm text-muted-foreground">
                     Nessun messaggio
                   </div>
                 ) : (
-                  <div className="mx-auto w-full max-w-4xl space-y-3">
+                  <div className="mx-auto w-full max-w-3xl space-y-2">
                     {messages.map((msg, i) => (
                       <div
                         key={i}
@@ -273,10 +286,15 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                           msg.role === 'user' ? 'justify-start' : 'justify-end',
                         )}
                       >
-                        <div className={cn('flex max-w-[85%] items-end gap-2 md:max-w-[72%] lg:max-w-[42rem]', msg.role === 'assistant' && 'flex-row-reverse')}>
+                        <div
+                          className={cn(
+                            'flex max-w-[85%] items-end gap-1.5 md:max-w-[70%]',
+                            msg.role === 'assistant' && 'flex-row-reverse',
+                          )}
+                        >
                           <div
                             className={cn(
-                              'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full',
+                              'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full',
                               msg.role === 'user'
                                 ? 'bg-muted text-muted-foreground'
                                 : 'bg-primary/15 text-primary',
@@ -285,14 +303,14 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                             {msg.role === 'user' ? (
                               <span className="text-[9px] font-bold">U</span>
                             ) : (
-                              <GeloLogo className="h-3 w-3" />
+                              <GeloLogo className="h-2.5 w-2.5" />
                             )}
                           </div>
                           <div
                             className={cn(
-                              'rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed shadow-sm',
+                              'rounded-lg px-3 py-2 text-[13px] leading-relaxed',
                               msg.role === 'user'
-                                ? 'rounded-bl-sm bg-card'
+                                ? 'rounded-bl-sm bg-card ring-1 ring-border'
                                 : 'rounded-br-sm bg-primary text-primary-foreground',
                             )}
                           >
@@ -303,12 +321,12 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                                   href={imageUrl}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="block overflow-hidden rounded-xl"
+                                  className="block overflow-hidden rounded-md"
                                 >
                                   <img
                                     src={imageUrl}
                                     alt="Immagine inviata dal lead"
-                                    className="max-h-80 w-full rounded-xl object-cover"
+                                    className="max-h-72 w-full rounded-md object-cover"
                                     loading="lazy"
                                   />
                                 </a>

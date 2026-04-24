@@ -1,3 +1,4 @@
+import { X } from 'lucide-react'
 import {
   commaSeparatedToList,
   createEmptyField,
@@ -42,68 +43,80 @@ export function FieldListEditor({ bot, onChange }: FieldListEditorProps) {
   }
 
   return (
-    <section className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-          {bot.fields.length} campi
-        </span>
-        <Button size="sm" type="button" onClick={addField} className="rounded-xl">
+    <section className="rounded-md border border-border bg-card">
+      <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold leading-tight">Campi di qualificazione</h2>
+          <span className="rounded-sm bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+            {bot.fields.length}
+          </span>
+        </div>
+        <Button size="sm" type="button" onClick={addField}>
           + Aggiungi
         </Button>
-      </div>
+      </header>
 
-      <div className="grid gap-4">
+      <div className="divide-y divide-border">
         {bot.fields.map((field, index) => (
-          <div
-            key={`${field.key}-${index}`}
-            className="rounded-xl border border-border/60 bg-muted/20 p-4 transition-colors hover:bg-muted/30"
-          >
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-xs font-bold text-primary">
-                {index + 1}
-              </div>
+          <div key={`${field.key}-${index}`} className="p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">
+                Campo {index + 1}
+              </span>
               <Button
                 size="icon-sm"
                 type="button"
                 variant="ghost"
-                className="rounded-lg text-muted-foreground hover:text-destructive"
+                className="text-muted-foreground hover:text-destructive"
                 onClick={() => removeField(index)}
                 disabled={bot.fields.length === 1}
+                aria-label="Rimuovi campo"
               >
-                ✕
+                <X className="h-3.5 w-3.5" />
               </Button>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
-              <div className="grid gap-2">
-                <Label htmlFor={`field-key-${index}`} className="text-sm font-semibold">Chiave</Label>
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+              <div className="grid gap-1.5">
+                <Label
+                  htmlFor={`field-key-${index}`}
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Chiave
+                </Label>
                 <Input
                   id={`field-key-${index}`}
-                  className="h-10 rounded-xl"
+                  className="h-9 rounded-md"
                   value={field.key}
-                  onChange={(event) =>
-                    updateField(index, { key: event.target.value })
-                  }
+                  onChange={(event) => updateField(index, { key: event.target.value })}
                 />
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor={`field-label-${index}`} className="text-sm font-semibold">Etichetta</Label>
+              <div className="grid gap-1.5">
+                <Label
+                  htmlFor={`field-label-${index}`}
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Etichetta
+                </Label>
                 <Input
                   id={`field-label-${index}`}
-                  className="h-10 rounded-xl"
+                  className="h-9 rounded-md"
                   value={field.label}
-                  onChange={(event) =>
-                    updateField(index, { label: event.target.value })
-                  }
+                  onChange={(event) => updateField(index, { label: event.target.value })}
                 />
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor={`field-options-${index}`} className="text-sm font-semibold">Opzioni</Label>
+              <div className="grid gap-1.5">
+                <Label
+                  htmlFor={`field-options-${index}`}
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Opzioni
+                </Label>
                 <Input
                   id={`field-options-${index}`}
-                  className="h-10 rounded-xl"
+                  className="h-9 rounded-md"
                   placeholder="si, no, forse"
                   value={listToCommaSeparated(field.options)}
                   onChange={(event) =>
@@ -114,25 +127,28 @@ export function FieldListEditor({ bot, onChange }: FieldListEditorProps) {
                 />
               </div>
 
-              <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background px-4 py-2.5 lg:self-end 2xl:min-w-[9rem]">
+              <div className="flex items-center gap-2 md:self-end md:pb-1">
                 <Switch
                   checked={field.required}
                   onCheckedChange={(checked) =>
                     updateField(index, { required: Boolean(checked) })
                   }
                 />
-                <Label className="text-sm font-semibold">Richiesto</Label>
+                <Label className="text-xs font-medium">Richiesto</Label>
               </div>
 
-              <div className="grid gap-2 lg:col-span-2 2xl:col-span-4">
-                <Label htmlFor={`field-description-${index}`} className="text-sm font-semibold">Descrizione</Label>
+              <div className="grid gap-1.5 md:col-span-4">
+                <Label
+                  htmlFor={`field-description-${index}`}
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Descrizione
+                </Label>
                 <Textarea
                   id={`field-description-${index}`}
-                  className="rounded-xl"
+                  className="min-h-20 rounded-md"
                   value={field.description}
-                  onChange={(event) =>
-                    updateField(index, { description: event.target.value })
-                  }
+                  onChange={(event) => updateField(index, { description: event.target.value })}
                 />
               </div>
             </div>
