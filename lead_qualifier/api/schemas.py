@@ -79,3 +79,15 @@ class SiteCrawlRequest(BaseModel):
     @classmethod
     def _strip_site_url(cls, value: object) -> str:
         return str(value or "").strip()
+
+
+class LeadAiStopRequest(BaseModel):
+    reason: str = Field(
+        default="Fermata manualmente dalla dashboard.",
+        description="Motivo interno per cui l'AI viene fermata nella chat.",
+    )
+
+    @field_validator("reason", mode="before")
+    @classmethod
+    def _strip_reason(cls, value: object) -> str:
+        return str(value or "").strip() or "Fermata manualmente dalla dashboard."

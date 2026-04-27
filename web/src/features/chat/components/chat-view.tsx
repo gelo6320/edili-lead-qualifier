@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Loader2, Trash2 } from 'lucide-react'
+import { ArrowLeft, Bot, BotOff, Loader2, Trash2 } from 'lucide-react'
 import { GeloLogo } from '@/shared/ui/gelo-logo'
 
 import {
   deleteLeadConversation,
   listLeadMessages,
   listLeads,
+  resumeLeadAi,
+  stopLeadAi,
 } from '@/shared/lib/dashboard-api'
 import { cn } from '@/shared/lib/utils'
 import type { BotConfig, ChatMessage, LeadSummary } from '@/shared/lib/types'
@@ -37,6 +39,7 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
   const [isLoadingLeads, setIsLoadingLeads] = useState(false)
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [deletingWaId, setDeletingWaId] = useState<string | null>(null)
+  const [aiActionWaId, setAiActionWaId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const selectedWaIdRef = useRef<string | null>(null)
@@ -133,6 +136,31 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
     }
   }
 
+  async function handleToggleLeadAi(lead: LeadSummary) {
+    if (aiActionWaId) return
+
+    setAiActionWaId(lead.wa_id)
+    setError('')
+
+    try {
+      if (lead.ai_stopped) {
+        await resumeLeadAi(accessToken, bot.id, lead.wa_id)
+      } else {
+        await stopLeadAi(
+          accessToken,
+          bot.id,
+          lead.wa_id,
+          'Fermata manualmente dalla dashboard.',
+        )
+      }
+      await reloadLeads({ preserveSelection: true })
+    } catch {
+      setError('Impossibile aggiornare lo stato AI della chat.')
+    } finally {
+      setAiActionWaId(null)
+    }
+  }
+
   return (
     <div className="grid gap-3">
       {error ? (
@@ -166,6 +194,8 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                     STATUS_COLORS[lead.qualification_status] ?? 'bg-muted text-muted-foreground'
                   const statusLabel =
                     STATUS_LABELS[lead.qualification_status] ?? lead.qualification_status
+                  const isAiActionPending = aiActionWaId === lead.wa_id
+                  const LeadAiIcon = lead.ai_stopped ? Bot : BotOff
 
                   return (
                     <li
@@ -200,6 +230,28 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                           </p>
                         ) : null}
                       </button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className={cn(
+                          'flex-shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/lead:opacity-100 aria-[busy=true]:opacity-100',
+                          lead.ai_stopped &&
+                            'text-amber-700 opacity-100 hover:text-amber-800 dark:text-amber-400',
+                        )}
+                        aria-busy={isAiActionPending}
+                        aria-pressed={lead.ai_stopped}
+                        disabled={isAiActionPending || deletingWaId === lead.wa_id}
+                        onClick={() => void handleToggleLeadAi(lead)}
+                        title={lead.ai_stopped ? 'Riattiva AI' : 'Ferma AI'}
+                        aria-label={`${lead.ai_stopped ? 'Riattiva AI' : 'Ferma AI'} +${lead.wa_id}`}
+                      >
+                        {isAiActionPending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <LeadAiIcon className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
                       <Button
                         type="button"
                         variant="ghost"
@@ -257,6 +309,37 @@ export function ChatView({ bot, accessToken }: ChatViewProps) {
                     {STATUS_LABELS[selectedLead.qualification_status] ??
                       selectedLead.qualification_status}
                   </span>
+                ) : null}
+                {selectedLead?.ai_stopped ? (
+                  <span className="flex-shrink-0 rounded-sm bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                    AI ferma
+                  </span>
+                ) : null}
+                {selectedLead ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className={cn(
+                      'text-muted-foreground',
+                      selectedLead.ai_stopped &&
+                        'text-amber-700 hover:text-amber-800 dark:text-amber-400',
+                    )}
+                    disabled={aiActionWaId === selectedLead.wa_id}
+                    aria-busy={aiActionWaId === selectedLead.wa_id}
+                    aria-pressed={selectedLead.ai_stopped}
+                    onClick={() => void handleToggleLeadAi(selectedLead)}
+                    title={selectedLead.ai_stopped ? 'Riattiva AI' : 'Ferma AI'}
+                    aria-label={selectedLead.ai_stopped ? 'Riattiva AI' : 'Ferma AI'}
+                  >
+                    {aiActionWaId === selectedLead.wa_id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : selectedLead.ai_stopped ? (
+                      <Bot className="h-3.5 w-3.5" />
+                    ) : (
+                      <BotOff className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
                 ) : null}
                 <Button
                   type="button"

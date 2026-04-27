@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import replace
+from datetime import datetime, timezone
 
 from lead_qualifier.domain.bot_config import BotConfig
 from lead_qualifier.domain.lead import LeadImageAsset, LeadRuntimeMetadata, LeadState, StoredMessage
@@ -102,5 +103,33 @@ def with_image_asset(lead_state: LeadState, image_asset: LeadImageAsset) -> Lead
         metadata=replace(
             lead_state.metadata,
             images=existing_images,
+        ),
+    )
+
+
+def with_ai_stopped(lead_state: LeadState, *, reason: str, stopped_by: str) -> LeadState:
+    cleaned_reason = reason.strip() or "Conversazione passata a supporto umano."
+    cleaned_stopped_by = stopped_by.strip() or "system"
+    return replace(
+        lead_state,
+        metadata=replace(
+            lead_state.metadata,
+            ai_stopped_at=datetime.now(timezone.utc).isoformat(),
+            ai_stopped_reason=cleaned_reason,
+            ai_stopped_by=cleaned_stopped_by,
+        ),
+    )
+
+
+def with_ai_resumed(lead_state: LeadState) -> LeadState:
+    if not lead_state.metadata.has_ai_stopped:
+        return lead_state
+    return replace(
+        lead_state,
+        metadata=replace(
+            lead_state.metadata,
+            ai_stopped_at="",
+            ai_stopped_reason="",
+            ai_stopped_by="",
         ),
     )

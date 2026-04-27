@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from contextlib import contextmanager
+from dataclasses import asdict
 from pathlib import Path
 from typing import Iterator
 
@@ -222,13 +223,16 @@ class SQLiteLeadStore:
                     cm.wa_id,
                     COALESCE(ls.qualification_status, 'new') AS qualification_status,
                     COALESCE(ls.summary, '') AS summary,
+                    COALESCE(json_extract(ls.metadata_json, '$.ai_stopped_at'), '') AS ai_stopped_at,
+                    COALESCE(json_extract(ls.metadata_json, '$.ai_stopped_reason'), '') AS ai_stopped_reason,
+                    COALESCE(json_extract(ls.metadata_json, '$.ai_stopped_by'), '') AS ai_stopped_by,
                     COUNT(cm.id) AS message_count,
                     MAX(cm.created_at) AS last_message_at
                 FROM conversation_messages cm
                 LEFT JOIN lead_states ls
                     ON cm.bot_id = ls.bot_id AND cm.wa_id = ls.wa_id
                 WHERE cm.bot_id = ?
-                GROUP BY cm.wa_id, ls.qualification_status, ls.summary
+                GROUP BY cm.wa_id, ls.qualification_status, ls.summary, ls.metadata_json
                 ORDER BY MAX(cm.created_at) DESC
                 """,
                 (bot_id,),
@@ -241,6 +245,10 @@ class SQLiteLeadStore:
                 summary=row["summary"],
                 message_count=int(row["message_count"]),
                 last_message_at=row["last_message_at"],
+                ai_stopped=bool(row["ai_stopped_at"]),
+                ai_stopped_at=row["ai_stopped_at"],
+                ai_stopped_reason=row["ai_stopped_reason"],
+                ai_stopped_by=row["ai_stopped_by"],
             )
             for row in rows
         ]
@@ -325,7 +333,7 @@ class SQLiteLeadStore:
                     lead_state.qualification_status,
                     json.dumps(lead_state.missing_fields, ensure_ascii=False),
                     lead_state.summary,
-                    json.dumps(lead_state.metadata.__dict__, ensure_ascii=False),
+                    json.dumps(asdict(lead_state.metadata), ensure_ascii=False),
                 ),
             )
 

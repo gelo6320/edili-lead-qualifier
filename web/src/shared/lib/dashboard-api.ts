@@ -3,6 +3,7 @@ import type {
   ChatMessage,
   DashboardAppConfig,
   DashboardSessionPayload,
+  LeadAiStatus,
   LeadSummary,
   MetaAssetsPayload,
   SiteCrawlRequest,
@@ -162,6 +163,27 @@ export function listLeadMessages(token: string, botId: string, waId: string) {
 export function deleteLeadConversation(token: string, botId: string, waId: string) {
   return dashboardFetch<{ status: string; bot_id: string; wa_id: string }>(
     `/api/dashboard/bots/${botId}/leads/${waId}`,
+    {
+      method: 'DELETE',
+    },
+    token,
+  )
+}
+
+export function stopLeadAi(token: string, botId: string, waId: string, reason: string) {
+  return dashboardFetch<LeadAiStatus>(
+    `/api/dashboard/bots/${botId}/leads/${waId}/ai-stop`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    },
+    token,
+  )
+}
+
+export function resumeLeadAi(token: string, botId: string, waId: string) {
+  return dashboardFetch<LeadAiStatus>(
+    `/api/dashboard/bots/${botId}/leads/${waId}/ai-stop`,
     {
       method: 'DELETE',
     },

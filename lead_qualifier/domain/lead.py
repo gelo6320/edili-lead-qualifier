@@ -81,6 +81,9 @@ class LeadRuntimeMetadata:
     qualified_handoff_reference: str = ""
     qualified_handoff_note: str = ""
     latest_contact_name: str = ""
+    ai_stopped_at: str = ""
+    ai_stopped_reason: str = ""
+    ai_stopped_by: str = ""
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any] | None) -> "LeadRuntimeMetadata":
@@ -109,6 +112,9 @@ class LeadRuntimeMetadata:
             qualified_handoff_reference=str(payload.get("qualified_handoff_reference", "")).strip(),
             qualified_handoff_note=str(payload.get("qualified_handoff_note", "")).strip(),
             latest_contact_name=str(payload.get("latest_contact_name", "")).strip(),
+            ai_stopped_at=str(payload.get("ai_stopped_at", "")).strip(),
+            ai_stopped_reason=str(payload.get("ai_stopped_reason", "")).strip(),
+            ai_stopped_by=str(payload.get("ai_stopped_by", "")).strip(),
         )
 
     @property
@@ -126,6 +132,10 @@ class LeadRuntimeMetadata:
     @property
     def has_images(self) -> bool:
         return bool(self.images)
+
+    @property
+    def has_ai_stopped(self) -> bool:
+        return bool(self.ai_stopped_at)
 
     @property
     def image_public_urls(self) -> list[str]:

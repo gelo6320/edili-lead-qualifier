@@ -48,13 +48,16 @@ class PostgresLeadStore:
                         cm.wa_id,
                         COALESCE(ls.qualification_status, 'new') AS qualification_status,
                         COALESCE(ls.summary, '') AS summary,
+                        COALESCE(ls.metadata_json->>'ai_stopped_at', '') AS ai_stopped_at,
+                        COALESCE(ls.metadata_json->>'ai_stopped_reason', '') AS ai_stopped_reason,
+                        COALESCE(ls.metadata_json->>'ai_stopped_by', '') AS ai_stopped_by,
                         COUNT(cm.id) AS message_count,
                         MAX(cm.created_at)::text AS last_message_at
                     FROM {self._messages_table} cm
                     LEFT JOIN {self._lead_states_table} ls
                         ON cm.bot_id = ls.bot_id AND cm.wa_id = ls.wa_id
                     WHERE cm.bot_id = %s
-                    GROUP BY cm.wa_id, ls.qualification_status, ls.summary
+                    GROUP BY cm.wa_id, ls.qualification_status, ls.summary, ls.metadata_json
                     ORDER BY MAX(cm.created_at) DESC
                     """,
                     (bot_id,),
@@ -68,6 +71,10 @@ class PostgresLeadStore:
                 summary=row["summary"],
                 message_count=row["message_count"],
                 last_message_at=row["last_message_at"],
+                ai_stopped=bool(row["ai_stopped_at"]),
+                ai_stopped_at=row["ai_stopped_at"],
+                ai_stopped_reason=row["ai_stopped_reason"],
+                ai_stopped_by=row["ai_stopped_by"],
             )
             for row in rows
         ]

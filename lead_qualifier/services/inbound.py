@@ -68,6 +68,28 @@ class InboundMessageService:
             LOGGER.info("Duplicate inbound message ignored: %s", message.message_id)
             return
 
+        history = self._store.list_messages(config.id, message.wa_id)
+        lead_state = self._store.get_lead_state(config.id, message.wa_id) or build_empty_lead_state(
+            config,
+            contact_name=message.contact_name,
+        )
+        lead_state = infer_initial_template_from_history(lead_state, history)
+        lead_state = with_contact_name(lead_state, message.contact_name)
+
+        if lead_state.metadata.has_ai_stopped and not message.image_media_id:
+            if message.has_text_or_media:
+                self._store.save_message(config.id, message.wa_id, StoredMessage.user(message.text))
+            self._store.save_lead_state(config.id, message.wa_id, lead_state)
+            self._store.mark_inbound_message_completed(message.message_id)
+            LOGGER.info(
+                "Inbound msg=%s bot=%s wa_id=%s stored without AI reply: chat stopped by %s",
+                message.message_id,
+                config.id,
+                message.wa_id,
+                lead_state.metadata.ai_stopped_by or "unknown",
+            )
+            return
+
         try:
             access_token = self._runtime_credentials.get_whatsapp_access_token(config)
         except Exception as exc:
@@ -90,14 +112,6 @@ class InboundMessageService:
                 self._store.mark_inbound_message_completed(message.message_id)
                 return
 
-            history = self._store.list_messages(config.id, message.wa_id)
-            lead_state = self._store.get_lead_state(config.id, message.wa_id) or build_empty_lead_state(
-                config,
-                contact_name=message.contact_name,
-            )
-            lead_state = infer_initial_template_from_history(lead_state, history)
-            lead_state = with_contact_name(lead_state, message.contact_name)
-
             user_message, lead_state = self._build_user_message(
                 config=config,
                 message=message,
@@ -105,6 +119,18 @@ class InboundMessageService:
                 access_token=access_token,
             )
             self._store.save_message(config.id, message.wa_id, user_message)
+
+            if lead_state.metadata.has_ai_stopped:
+                self._store.save_lead_state(config.id, message.wa_id, lead_state)
+                self._store.mark_inbound_message_completed(message.message_id)
+                LOGGER.info(
+                    "Inbound msg=%s bot=%s wa_id=%s stored without AI reply: chat stopped by %s",
+                    message.message_id,
+                    config.id,
+                    message.wa_id,
+                    lead_state.metadata.ai_stopped_by or "unknown",
+                )
+                return
 
             knowledge_query = message.text.strip()
             if not knowledge_query and message.image_caption.strip():

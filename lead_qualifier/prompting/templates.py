@@ -81,5 +81,6 @@ Riassunto corrente: {summary}
 Bootstrap conversazione: {conversation_bootstrap}
 Immagini raccolte: {images_status}
 Passaggio operativo: {qualified_handoff_status}
+Stato AI chat: {ai_stop_status}
 </runtime_state>
 """.strip()

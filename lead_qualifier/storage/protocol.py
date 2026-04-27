@@ -15,6 +15,10 @@ class LeadConversationSummary:
     summary: str
     message_count: int
     last_message_at: str
+    ai_stopped: bool = False
+    ai_stopped_at: str = ""
+    ai_stopped_reason: str = ""
+    ai_stopped_by: str = ""
 
 
 class LeadStore(Protocol):

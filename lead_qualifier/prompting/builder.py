@@ -104,6 +104,7 @@ def build_system_blocks(
         conversation_bootstrap=_format_conversation_bootstrap(lead_state),
         images_status=_format_images_status(lead_state),
         qualified_handoff_status=_format_qualified_handoff_status(lead_state),
+        ai_stop_status=_format_ai_stop_status(lead_state),
     )
 
     if knowledge_context.strip():
@@ -203,3 +204,12 @@ def _format_qualified_handoff_status(lead_state: LeadState) -> str:
         f"Lead gia inviato al webhook operativo il {metadata.qualified_handoff_sent_at}. "
         f"Riferimento: {reference}. Nota invio: {metadata.qualified_handoff_note or 'nessuna'}."
     )
+
+
+def _format_ai_stop_status(lead_state: LeadState) -> str:
+    metadata = lead_state.metadata
+    if not metadata.has_ai_stopped:
+        return "AI attiva per questa chat."
+    reason = metadata.ai_stopped_reason or "n/d"
+    stopped_by = metadata.ai_stopped_by or "n/d"
+    return f"AI fermata il {metadata.ai_stopped_at} da {stopped_by}. Motivo: {reason}."

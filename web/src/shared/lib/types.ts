@@ -72,12 +72,26 @@ export type LeadSummary = {
   summary: string
   message_count: number
   last_message_at: string
+  ai_stopped: boolean
+  ai_stopped_at: string
+  ai_stopped_reason: string
+  ai_stopped_by: string
 }
 
 export type ChatMessage = {
   role: 'user' | 'assistant'
   display: string
   images: string[]
+}
+
+export type LeadAiStatus = {
+  status: 'active' | 'stopped'
+  bot_id: string
+  wa_id: string
+  ai_stopped: boolean
+  ai_stopped_at: string
+  ai_stopped_reason: string
+  ai_stopped_by: string
 }
 
 export type MetaTemplateOption = {

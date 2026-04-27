@@ -11,15 +11,22 @@ from dataclasses import asdict
 
 from lead_qualifier.api.dashboard_auth import require_dashboard_user
 from lead_qualifier.api.schemas import (
+    LeadAiStopRequest,
     SiteCrawlRequest,
     TemplateSendRequest,
     TemplateTestRequest,
 )
 from lead_qualifier.core.settings import Settings
 from lead_qualifier.domain.bot_config import BotConfig
+from lead_qualifier.domain.lead import LeadRuntimeMetadata
 from lead_qualifier.integrations.whatsapp.client import WhatsAppCloudError
 from lead_qualifier.services.outbound import OutboundMessageService
 from lead_qualifier.services.meta_integration import MetaIntegrationError, MetaIntegrationService
+from lead_qualifier.services.lead_state import (
+    build_empty_lead_state,
+    with_ai_resumed,
+    with_ai_stopped,
+)
 from lead_qualifier.services.website_personalization import (
     WebsitePersonalizationError,
     WebsitePersonalizationService,
@@ -217,6 +224,36 @@ def build_dashboard_api_router(
         lead_store.delete_lead_conversation(bot_id, wa_id)
         return {"status": "deleted", "bot_id": bot_id, "wa_id": wa_id}
 
+    @router.post("/bots/{bot_id}/leads/{wa_id}/ai-stop")
+    async def stop_lead_ai(bot_id: str, wa_id: str, payload: LeadAiStopRequest, request: Request) -> dict:
+        await require_dashboard_user(request, settings)
+        if lead_store is None:
+            raise HTTPException(status_code=501, detail="Lead store non disponibile.")
+        config = config_store.get(bot_id)
+        if config is None:
+            raise HTTPException(status_code=404, detail="Bot non trovato.")
+        lead_state = lead_store.get_lead_state(bot_id, wa_id) or build_empty_lead_state(config)
+        stopped_state = with_ai_stopped(
+            lead_state,
+            reason=payload.reason,
+            stopped_by="manual",
+        )
+        lead_store.save_lead_state(bot_id, wa_id, stopped_state)
+        return _lead_ai_status(bot_id, wa_id, stopped_state.metadata)
+
+    @router.delete("/bots/{bot_id}/leads/{wa_id}/ai-stop")
+    async def resume_lead_ai(bot_id: str, wa_id: str, request: Request) -> dict:
+        await require_dashboard_user(request, settings)
+        if lead_store is None:
+            raise HTTPException(status_code=501, detail="Lead store non disponibile.")
+        config = config_store.get(bot_id)
+        if config is None:
+            raise HTTPException(status_code=404, detail="Bot non trovato.")
+        lead_state = lead_store.get_lead_state(bot_id, wa_id) or build_empty_lead_state(config)
+        resumed_state = with_ai_resumed(lead_state)
+        lead_store.save_lead_state(bot_id, wa_id, resumed_state)
+        return _lead_ai_status(bot_id, wa_id, resumed_state.metadata)
+
     @router.get("/meta/oauth/start")
     async def start_meta_oauth(request: Request) -> dict:
         if meta_integration is None:
@@ -325,6 +362,18 @@ def _extract_message_images(api_content: str) -> tuple[list[str], int]:
     if not image_urls:
         image_urls = _extract_image_urls_from_blocks(blocks)
     return image_urls, image_block_count
+
+
+def _lead_ai_status(bot_id: str, wa_id: str, metadata: LeadRuntimeMetadata) -> dict:
+    return {
+        "status": "stopped" if metadata.has_ai_stopped else "active",
+        "bot_id": bot_id,
+        "wa_id": wa_id,
+        "ai_stopped": metadata.has_ai_stopped,
+        "ai_stopped_at": metadata.ai_stopped_at,
+        "ai_stopped_reason": metadata.ai_stopped_reason,
+        "ai_stopped_by": metadata.ai_stopped_by,
+    }
 
 
 def _resolve_message_display(display: str, api_content: str) -> str:
